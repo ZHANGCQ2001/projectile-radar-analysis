@@ -1,0 +1,36 @@
+function metrics = computeVelocityMetrics(trackTable, measuredSpeed)
+%COMPUTEVELOCITYMETRICS Calculate velocity accuracy statistics.
+
+    metrics = struct( ...
+        'meanSpeed', NaN, ...
+        'standardDeviation', NaN, ...
+        'mae', NaN, ...
+        'rmse', NaN, ...
+        'minimumAbsoluteError', NaN, ...
+        'relativeRmsePercent', NaN, ...
+        'relativeMinimumAbsoluteErrorPercent', NaN);
+
+    if isempty(trackTable) ...
+            || ~ismember('UnwrappedVelocity_mps', ...
+                trackTable.Properties.VariableNames)
+        return;
+    end
+
+    validMask = isfinite(trackTable.UnwrappedVelocity_mps);
+    if ~any(validMask)
+        return;
+    end
+
+    velocity = trackTable.UnwrappedVelocity_mps(validMask);
+    errorValue = velocity - measuredSpeed;
+
+    metrics.meanSpeed = mean(velocity);
+    metrics.standardDeviation = std(velocity);
+    metrics.mae = mean(abs(errorValue));
+    metrics.rmse = sqrt(mean(errorValue.^2));
+    metrics.minimumAbsoluteError = min(abs(errorValue));
+    metrics.relativeRmsePercent = ...
+        metrics.rmse / abs(measuredSpeed) * 100;
+    metrics.relativeMinimumAbsoluteErrorPercent = ...
+        metrics.minimumAbsoluteError / abs(measuredSpeed) * 100;
+end

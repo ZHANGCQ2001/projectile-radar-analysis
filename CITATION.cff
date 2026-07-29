@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "Projectile Radar Data Analysis"
+type: software
+authors:
+  - family-names: "Zhang"
+    given-names: "Cang"
+version: 0.1.0
+date-released: 2026-07-29
+license: MIT
+repository-code: "https://github.com/ZHANGCQ2001/projectile-radar-analysis"
+keywords:
+  - FMCW radar
+  - millimeter-wave radar
+  - range-Doppler processing
+  - velocity ambiguity resolution
+  - projectile tracking

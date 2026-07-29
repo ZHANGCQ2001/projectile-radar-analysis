@@ -1,0 +1,45 @@
+# MATLAB temporary and generated files
+*.asv
+*.autosave
+*.m~
+*.mex*
+*.fig
+*.mlappinstall
+*.slxc
+*.slprj/
+codegen/
+resources/project/
+
+# Raw radar data and logs
+*.bin
+*.raw
+*.dat
+*.lvds
+*.pcap
+*.csv
+*.log
+
+# Generated numeric and media results
+*.mat
+*.gif
+*.avi
+*.mp4
+*.mov
+results/*
+!results/README.md
+!results/.gitkeep
+
+# Temporary images
+*.tmp.png
+temp/
+tmp/
+
+# IDE and operating system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Word temporary files
+~$*.docx
