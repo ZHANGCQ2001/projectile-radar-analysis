@@ -3,7 +3,7 @@ function cfg = config_0725_123207()
 
     cfg = pradar.defaultConfig();
     cfg.caseId = "0725_123207";
-    cfg.rangeFftSize = 128;
+    cfg.rangeFftSize = 256;
     cfg.winSize = 16;
     cfg.winStep = 16;
     cfg.dopplerFftSize = 128;
