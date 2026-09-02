@@ -25,9 +25,10 @@ resources/project/
 *.avi
 *.mp4
 *.mov
-results/*
-!results/README.md
-!results/.gitkeep
+
+# Keep lightweight analysis results under results/
+!results/**/*.csv
+!results/**/*.gif
 
 # Temporary images
 *.tmp.png

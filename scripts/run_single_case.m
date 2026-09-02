@@ -29,4 +29,4 @@ if strlength(dataFile) == 0
 end
 
 cfg.outputDir = fullfile(repoRoot, 'results', caseId);
-result = pradar.runAnalysis(cfg, dataFile); %#ok<NASGU>
+result = pradar.runAnalysis(cfg, dataFile); 
