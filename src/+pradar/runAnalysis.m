@@ -131,8 +131,19 @@ function result = runAnalysis(cfg, dataFile)
         candidateCsvPath = fullfile( ...
             cfg.outputDir, baseName + "_candidates.csv");
         trackCsvPath = fullfile(cfg.outputDir, baseName + "_track.csv");
+    
+        resultWithFigures = result;
+    
+        if isfield(result, 'figures')
+            result = rmfield(result, 'figures');
+        end
+    
         save(matPath, 'result', '-v7.3');
+    
+        result = resultWithFigures;
+    
         writetable(candidateTable, candidateCsvPath);
+    
         if fitInfo.valid
             writetable(trackTable, trackCsvPath);
         end

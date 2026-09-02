@@ -1,5 +1,5 @@
 %% Run one configured data case
-
+close all;
 repoRoot = fileparts(fileparts(mfilename('fullpath')));
 addpath(fullfile(repoRoot, 'src'));
 addpath(fullfile(repoRoot, 'configs'));
