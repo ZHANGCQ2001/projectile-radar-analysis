@@ -11,7 +11,7 @@ codegen/
 resources/project/
 
 # Raw radar data and logs
-*.bin
+# *.bin
 *.raw
 *.dat
 *.lvds
