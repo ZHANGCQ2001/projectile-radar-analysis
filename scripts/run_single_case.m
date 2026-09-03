@@ -4,7 +4,7 @@ repoRoot = fileparts(fileparts(mfilename('fullpath')));
 addpath(fullfile(repoRoot, 'src'));
 addpath(fullfile(repoRoot, 'configs'));
 
-caseId = "0725_123207";
+caseId = "0725_135656";
 dataFile = "";  % Leave empty to select a BIN file interactively.
 
 switch caseId
@@ -17,6 +17,10 @@ switch caseId
     otherwise
         error('Unknown caseId: %s', caseId);
 end
+
+cfg.generateRawRdGif = true;
+cfg.generateMeanRemovedRdGif = true;
+cfg.generateEnhancedRdGif = true;
 
 if strlength(dataFile) == 0
     [fileName, filePath] = uigetfile( ...
