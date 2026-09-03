@@ -1,10 +1,15 @@
 function ax = drawSegmentedMap( ...
         timeAxisMs, rangeAxis, mapData, columnsPerFrame, numFrames, ...
-        figureName, titleText, rangeLimits, colorLimits, visibleValue)
+        figureName, titleText, rangeLimits, colorLimits, ...
+        visibleValue, yLabelText)
 %DRAWSEGMENTEDMAP Draw frame segments while preserving inter-frame gaps.
 
     if nargin < 10
         visibleValue = 'on';
+    end
+    
+    if nargin < 11
+        yLabelText = 'Range (m)';
     end
 
     fig = figure('Name', figureName, 'Color', 'w', ...
@@ -29,7 +34,7 @@ function ax = drawSegmentedMap( ...
     colorbar(ax);
     grid(ax, 'on');
     xlabel(ax, 'Time (ms)');
-    ylabel(ax, 'Range (m)');
+    ylabel(ax, yLabelText);
     title(ax, titleText, 'Interpreter', 'none');
     hold(ax, 'off');
 end

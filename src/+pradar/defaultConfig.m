@@ -102,16 +102,16 @@ function cfg = defaultConfig()
     cfg.rangeVelocityCouplingSign = 1;
 
     % RD projection mode
-    % "range"    : only range-time projection
-    % "velocity" : only velocity-time projection
-    % "both"     : compute and save both
-    cfg.rdProjectionMode = "both";
+    %
+    % "range":
+    %   Preserve range dimension and compress velocity dimension.
+    %   This is the original processing method.
+    %
+    % "velocity":
+    %   Preserve velocity dimension and compress range dimension.
+    cfg.rdProjectionMode = "range";
 
-    % Primary projection used by downstream candidate extraction
-    % Current pipeline only supports "range"
-    cfg.primaryProjection = "range";
-
-    % Figure export
-    cfg.saveRangeTimeProjectionFigure = true;
-    cfg.saveVelocityTimeProjectionFigure = true;
+    % Velocity-domain candidate extraction
+    cfg.velocitySmoothBins = 3;
+    cfg.minVelocityCandidateSeparation = 10;
 end
