@@ -100,4 +100,18 @@ function cfg = defaultConfig()
     % Optional range-velocity coupling correction
     cfg.applyRangeVelocityCouplingCorrection = false;
     cfg.rangeVelocityCouplingSign = 1;
+
+    % RD projection mode
+    % "range"    : only range-time projection
+    % "velocity" : only velocity-time projection
+    % "both"     : compute and save both
+    cfg.rdProjectionMode = "both";
+
+    % Primary projection used by downstream candidate extraction
+    % Current pipeline only supports "range"
+    cfg.primaryProjection = "range";
+
+    % Figure export
+    cfg.saveRangeTimeProjectionFigure = true;
+    cfg.saveVelocityTimeProjectionFigure = true;
 end

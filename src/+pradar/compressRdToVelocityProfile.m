@@ -1,11 +1,24 @@
 function [velocityTimeMapDb, rangeMap] = ...
         compressRdToVelocityProfile(rdEnhancedDb, derived, cfg)
-%COMPRESSRDTOVELOCITYPROFILE
-% Max-compress RD enhancement along range.
+%COMPRESSRDTOVELOCITYPROFILE Max-compress RD enhancement along range.
+%
+% Input:
+%   rdEnhancedDb : [Nr, Nv, Nw]
+%
+% Output:
+%   velocityTimeMapDb : [Nv, Nw]
+%       Max projection along range for each velocity and window
+%   rangeMap : [Nv, Nw]
+%       Range corresponding to the selected maximum
 
     rangeMask = ...
         derived.rangeAxis >= cfg.candidateRangeMin ...
         & derived.rangeAxis <= cfg.candidateRangeMax;
+
+    if ~any(rangeMask)
+        error('pradar:EmptyRangeMask', ...
+            'No range bins remain after applying the range mask.');
+    end
 
     selectedRd = rdEnhancedDb(rangeMask, :, :);
 
@@ -30,9 +43,7 @@ function [velocityTimeMapDb, rangeMap] = ...
         'single');
 
     for windowIndex = 1:size(velocityTimeMapDb, 2)
-
         rangeMap(:, windowIndex) = single( ...
-            selectedRangeAxis( ...
-                rangeIndex(:, windowIndex)));
+            selectedRangeAxis(rangeIndex(:, windowIndex)));
     end
 end
