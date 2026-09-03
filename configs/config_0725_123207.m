@@ -42,8 +42,8 @@ function cfg = config_0725_123207()
     cfg.unwrapSpeedMin = 200;
     cfg.unwrapSpeedMax = 700;
 
-    cfg.backgroundFrameStart = 126;
-    cfg.backgroundFrameEnd = 133;
+    cfg.backgroundFrameStart = 113;
+    cfg.backgroundFrameEnd = 130;
     cfg.targetFrameStart = 134;
     cfg.targetFrameEnd = 135;
 
