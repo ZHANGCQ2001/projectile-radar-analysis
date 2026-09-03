@@ -7,7 +7,7 @@ function cfg = config_0725_123207()
     cfg.winSize = 16;
     cfg.winStep = 16;
     cfg.dopplerFftSize = 128;
-    cfg.slowTimeMeanRemoval = true;
+    cfg.slowTimeMeanRemoval = false;
     cfg.useFullAliasedVelocityAxis = false;
     cfg.highSpeedMin = 20;
 

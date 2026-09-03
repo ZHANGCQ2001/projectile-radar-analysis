@@ -76,13 +76,7 @@ function cfg = defaultConfig()
     cfg.rawDynamicRangeDb = 35;
     cfg.chirpEnhancedClim = [0, 15];
     cfg.rdEnhancedRangeTimeClim = [0, 35];
-    % cfg.generateRdGif = true;
-    % cfg.rdGifDelayTime = 0.15;
-    % cfg.rdGifClim = [0, 35];
-    % cfg.rdGifRangeMin = 0;
-    % cfg.rdGifRangeMax = 10;
-    % cfg.rdGifResolution = 120;
-    % cfg.rdGifVisible = false;
+
     % RD GIF output
     cfg.generateRdGif = true;
     cfg.generateRawRdGif = true;
@@ -90,6 +84,7 @@ function cfg = defaultConfig()
     cfg.generateEnhancedRdGif = true;
     % Raw/mean-removed RD use the same absolute dB color scale
     cfg.rdPowerGifDynamicRangeDb = 45;
+    cfg.rdMeanRemovedVisibleDynamicRangeDb = 40;
     % Background-enhanced RD uses enhancement dB
     cfg.rdGifClim = [0, 35];
     cfg.rdGifRangeMin = 0;
