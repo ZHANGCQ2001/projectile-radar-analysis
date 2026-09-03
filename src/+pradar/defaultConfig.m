@@ -78,8 +78,8 @@ function cfg = defaultConfig()
     cfg.rdEnhancedRangeTimeClim = [0, 35];
     
     % Diagnostic mean-compressed RD maps
-    cfg.rdMeanRangeTimeClim = [0, 15];
-    cfg.rdMeanVelocityTimeClim = [0, 15];
+    cfg.rdMeanRangeTimeClim = [0, 35];
+    cfg.rdMeanVelocityTimeClim = [0, 35];
 
     % RD GIF output
     cfg.generateRdGif = true;

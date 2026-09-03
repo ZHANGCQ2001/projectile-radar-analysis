@@ -4,7 +4,7 @@ repoRoot = fileparts(fileparts(mfilename('fullpath')));
 addpath(fullfile(repoRoot, 'src'));
 addpath(fullfile(repoRoot, 'configs'));
 
-caseId = "0725_123207";
+caseId = "0725_143411";
 dataFile = "";  % Leave empty to select a BIN file interactively.
 
 switch caseId
