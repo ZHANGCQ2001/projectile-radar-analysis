@@ -76,6 +76,10 @@ function cfg = defaultConfig()
     cfg.rawDynamicRangeDb = 35;
     cfg.chirpEnhancedClim = [0, 15];
     cfg.rdEnhancedRangeTimeClim = [0, 35];
+    
+    % Diagnostic mean-compressed RD maps
+    cfg.rdMeanRangeTimeClim = [0, 15];
+    cfg.rdMeanVelocityTimeClim = [0, 15];
 
     % RD GIF output
     cfg.generateRdGif = true;
