@@ -18,9 +18,9 @@ switch caseId
         error('Unknown caseId: %s', caseId);
 end
 
-cfg.generateRawRdGif = true;
-cfg.generateMeanRemovedRdGif = true;
-cfg.generateEnhancedRdGif = true;
+cfg.generateRawRdGif = false;
+cfg.generateMeanRemovedRdGif = false;
+cfg.generateEnhancedRdGif = false;
 
 if strlength(dataFile) == 0
     [fileName, filePath] = uigetfile( ...

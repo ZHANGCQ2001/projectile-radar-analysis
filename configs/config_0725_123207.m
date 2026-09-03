@@ -5,7 +5,7 @@ function cfg = config_0725_123207()
     cfg.caseId = "0725_123207";
     cfg.rangeFftSize = 256;
     cfg.winSize = 16;
-    cfg.winStep = 16;
+    cfg.winStep = 2;
     cfg.dopplerFftSize = 128;
     cfg.rdProjectionMode = "range";
     cfg.slowTimeMeanRemoval = false;
@@ -43,7 +43,7 @@ function cfg = config_0725_123207()
     cfg.unwrapSpeedMin = 200;
     cfg.unwrapSpeedMax = 700;
 
-    cfg.backgroundFrameStart = 113;
+    cfg.backgroundFrameStart = 120;
     cfg.backgroundFrameEnd = 130;
     cfg.targetFrameStart = 134;
     cfg.targetFrameEnd = 135;
