@@ -45,6 +45,18 @@ function cfg = defaultConfig()
     cfg.minTrackWindows = 5;
     cfg.trackStartTimeMs = -Inf;
     cfg.trackEndTimeMs = Inf;
+    % Balanced track scoring. Coverage is normalized by the number of
+    % available windows, so an extra weak clutter point cannot dominate the
+    % score simply because it adds a fixed large count reward.
+    cfg.trackCoverageWeight = 100;
+    cfg.trackContinuityWeight = 30;
+    cfg.trackMeanStrengthWeight = 2.5;
+    cfg.trackDistanceNormalizedPenalty = 35;
+    cfg.trackVelocityNormalizedPenalty = 10;
+    cfg.trackMeasuredAliasNormalizedPenalty = 15;
+
+    % Legacy fields are kept for configuration compatibility. The balanced
+    % scorer no longer uses raw point count as an absolute reward.
     cfg.trackCountWeight = 100;
     cfg.trackStrengthWeight = 0.30;
     cfg.trackDistancePenalty = 30;
