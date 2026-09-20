@@ -29,6 +29,8 @@ classdef ProcessingWindow < handle
 
         RangeMinEdit
         RangeMaxEdit
+        DisplayRangeMinEdit
+        DisplayRangeMaxEdit
         CandidateThresholdEdit
         MaxCandidatesEdit
 
@@ -36,9 +38,14 @@ classdef ProcessingWindow < handle
         FitSpeedMaxEdit
         ReferenceSpeedEdit
         TrackToleranceEdit
+        TrackStartTimeEdit
+        TrackEndTimeEdit
         MinTrackWindowsEdit
+        HighSpeedMinEdit
 
         ProjectionDropDown
+        VelocityHardGateCheckBox
+        VelocityToleranceEdit
         MeanRemovalCheckBox
         KeepIntermediateCheckBox
 
@@ -147,11 +154,11 @@ classdef ProcessingWindow < handle
             obj.ControlPanel.Layout.Row = 1;
             obj.ControlPanel.Layout.Column = 1;
 
-            obj.ControlGrid = uigridlayout(obj.ControlPanel, [16 4]);
+            obj.ControlGrid = uigridlayout(obj.ControlPanel, [20 4]);
             obj.ControlGrid.ColumnWidth = {92, 72, 92, '1x'};
             obj.ControlGrid.RowHeight = { ...
-                26, 34, 24, 26, 26, 26, 26, 26, ...
-                26, 26, 26, 26, 32, 30, 34, '1x'};
+                26, 34, 24, 26, 26, 26, 26, 26, 26, 26, ...
+                26, 26, 26, 26, 26, 26, 32, 30, 34, '1x'};
             obj.ControlGrid.Padding = [8 8 8 8];
             obj.ControlGrid.RowSpacing = 5;
             obj.ControlGrid.ColumnSpacing = 5;
@@ -198,47 +205,68 @@ classdef ProcessingWindow < handle
             addLabel(obj, 6, 3, '帧周期 ms');
             obj.FramePeriodEdit = addNumeric(obj, 6, 4, 3.5);
 
-            addLabel(obj, 7, 1, '距离下限 m');
+            addLabel(obj, 7, 1, '候选距离下限');
             obj.RangeMinEdit = addNumeric(obj, 7, 2, 0.25);
-            addLabel(obj, 7, 3, '距离上限 m');
-            obj.RangeMaxEdit = addNumeric(obj, 7, 4, 6.0);
+            addLabel(obj, 7, 3, '候选距离上限');
+            obj.RangeMaxEdit = addNumeric(obj, 7, 4, 3.0);
 
-            addLabel(obj, 8, 1, '候选门限 dB');
-            obj.CandidateThresholdEdit = addNumeric(obj, 8, 2, 3.0);
-            addLabel(obj, 8, 3, '每窗候选数');
-            obj.MaxCandidatesEdit = addNumeric(obj, 8, 4, 6);
+            addLabel(obj, 8, 1, '显示距离下限');
+            obj.DisplayRangeMinEdit = addNumeric(obj, 8, 2, 0);
+            addLabel(obj, 8, 3, '显示距离上限');
+            obj.DisplayRangeMaxEdit = addNumeric(obj, 8, 4, 6.0);
 
-            addLabel(obj, 9, 1, '拟合速度下限');
-            obj.FitSpeedMinEdit = addNumeric(obj, 9, 2, 200);
-            addLabel(obj, 9, 3, '拟合速度上限');
-            obj.FitSpeedMaxEdit = addNumeric(obj, 9, 4, 1700);
+            addLabel(obj, 9, 1, '候选门限 dB');
+            obj.CandidateThresholdEdit = addNumeric(obj, 9, 2, 3.0);
+            addLabel(obj, 9, 3, '每窗候选数');
+            obj.MaxCandidatesEdit = addNumeric(obj, 9, 4, 6);
 
-            addLabel(obj, 10, 1, '参考速度 m/s');
-            obj.ReferenceSpeedEdit = addNumeric(obj, 10, 2, 400);
-            addLabel(obj, 10, 3, '轨迹容差 m');
-            obj.TrackToleranceEdit = addNumeric(obj, 10, 4, 0.55);
+            addLabel(obj, 10, 1, '拟合速度下限');
+            obj.FitSpeedMinEdit = addNumeric(obj, 10, 2, 200);
+            addLabel(obj, 10, 3, '拟合速度上限');
+            obj.FitSpeedMaxEdit = addNumeric(obj, 10, 4, 1700);
 
-            addLabel(obj, 11, 1, '最少轨迹点');
-            obj.MinTrackWindowsEdit = addNumeric(obj, 11, 2, 5);
-            addLabel(obj, 11, 3, 'RD 投影');
+            addLabel(obj, 11, 1, '参考速度 m/s');
+            obj.ReferenceSpeedEdit = addNumeric(obj, 11, 2, 400);
+            addLabel(obj, 11, 3, '轨迹容差 m');
+            obj.TrackToleranceEdit = addNumeric(obj, 11, 4, 0.55);
+
+            addLabel(obj, 12, 1, '轨迹起始 ms');
+            obj.TrackStartTimeEdit = addNumeric(obj, 12, 2, 0);
+            addLabel(obj, 12, 3, '轨迹终止 ms');
+            obj.TrackEndTimeEdit = addNumeric(obj, 12, 4, Inf);
+
+            addLabel(obj, 13, 1, '最少轨迹点');
+            obj.MinTrackWindowsEdit = addNumeric(obj, 13, 2, 5);
+            addLabel(obj, 13, 3, '最小|模糊速度|');
+            obj.HighSpeedMinEdit = addNumeric(obj, 13, 4, 0);
+
+            obj.VelocityHardGateCheckBox = uicheckbox(obj.ControlGrid);
+            obj.VelocityHardGateCheckBox.Text = '启用速度硬门限';
+            obj.VelocityHardGateCheckBox.Layout.Row = 14;
+            obj.VelocityHardGateCheckBox.Layout.Column = [1 2];
+
+            addLabel(obj, 14, 3, '速度容差 m/s');
+            obj.VelocityToleranceEdit = addNumeric(obj, 14, 4, 70);
+
+            addLabel(obj, 15, 1, 'RD 投影');
             obj.ProjectionDropDown = uidropdown(obj.ControlGrid);
             obj.ProjectionDropDown.Items = {'range', 'velocity'};
             obj.ProjectionDropDown.Value = 'range';
-            obj.ProjectionDropDown.Layout.Row = 11;
-            obj.ProjectionDropDown.Layout.Column = 4;
+            obj.ProjectionDropDown.Layout.Row = 15;
+            obj.ProjectionDropDown.Layout.Column = 2;
 
             obj.MeanRemovalCheckBox = uicheckbox(obj.ControlGrid);
             obj.MeanRemovalCheckBox.Text = '慢时间去均值';
-            obj.MeanRemovalCheckBox.Layout.Row = 12;
-            obj.MeanRemovalCheckBox.Layout.Column = [1 2];
+            obj.MeanRemovalCheckBox.Layout.Row = 15;
+            obj.MeanRemovalCheckBox.Layout.Column = 3;
 
             obj.KeepIntermediateCheckBox = uicheckbox(obj.ControlGrid);
             obj.KeepIntermediateCheckBox.Text = '保留完整 RD Cube';
-            obj.KeepIntermediateCheckBox.Layout.Row = 12;
-            obj.KeepIntermediateCheckBox.Layout.Column = [3 4];
+            obj.KeepIntermediateCheckBox.Layout.Row = 15;
+            obj.KeepIntermediateCheckBox.Layout.Column = 4;
 
             buttonGrid = uigridlayout(obj.ControlGrid, [1 3]);
-            buttonGrid.Layout.Row = 13;
+            buttonGrid.Layout.Row = 16;
             buttonGrid.Layout.Column = [1 4];
             buttonGrid.ColumnWidth = {'1x', '1x', '1x'};
             buttonGrid.Padding = [0 0 0 0];
@@ -261,21 +289,21 @@ classdef ProcessingWindow < handle
             obj.ProgressGauge = uigauge(obj.ControlGrid, 'linear');
             obj.ProgressGauge.Limits = [0 100];
             obj.ProgressGauge.Value = 0;
-            obj.ProgressGauge.Layout.Row = 14;
+            obj.ProgressGauge.Layout.Row = 17;
             obj.ProgressGauge.Layout.Column = [1 4];
 
             obj.StatusLabel = uilabel(obj.ControlGrid);
             obj.StatusLabel.Text = '就绪';
             obj.StatusLabel.WordWrap = 'on';
-            obj.StatusLabel.Layout.Row = 15;
+            obj.StatusLabel.Layout.Row = 18;
             obj.StatusLabel.Layout.Column = [1 4];
 
             noteLabel = uilabel(obj.ControlGrid);
             noteLabel.Text = [ ...
-                '参考速度用于速度解模糊，请按试验工况确认。' ...
-                '首次处理建议只选择少量背景帧和目标帧。'];
+                '候选距离只限制算法搜索；显示距离只控制图像范围。' ...
+                '参考速度用于速度约束与解模糊。'];
             noteLabel.WordWrap = 'on';
-            noteLabel.Layout.Row = 16;
+            noteLabel.Layout.Row = [19 20];
             noteLabel.Layout.Column = [1 4];
 
             obj.TabGroup = uitabgroup(obj.MainGrid);
@@ -337,6 +365,12 @@ classdef ProcessingWindow < handle
             if isfield(cfg, 'candidateRangeMax')
                 obj.RangeMaxEdit.Value = cfg.candidateRangeMax;
             end
+            if isfield(cfg, 'displayRangeMin')
+                obj.DisplayRangeMinEdit.Value = cfg.displayRangeMin;
+            end
+            if isfield(cfg, 'displayRangeMax')
+                obj.DisplayRangeMaxEdit.Value = cfg.displayRangeMax;
+            end
             if isfield(cfg, 'candidateThresholdDb')
                 obj.CandidateThresholdEdit.Value = ...
                     cfg.candidateThresholdDb;
@@ -361,6 +395,22 @@ classdef ProcessingWindow < handle
             end
             if isfield(cfg, 'minTrackWindows')
                 obj.MinTrackWindowsEdit.Value = cfg.minTrackWindows;
+            end
+            if isfield(cfg, 'trackStartTimeMs')
+                obj.TrackStartTimeEdit.Value = cfg.trackStartTimeMs;
+            end
+            if isfield(cfg, 'trackEndTimeMs')
+                obj.TrackEndTimeEdit.Value = cfg.trackEndTimeMs;
+            end
+            if isfield(cfg, 'highSpeedMin')
+                obj.HighSpeedMinEdit.Value = cfg.highSpeedMin;
+            end
+            if isfield(cfg, 'useVelocityHardGate')
+                obj.VelocityHardGateCheckBox.Value = ...
+                    logical(cfg.useVelocityHardGate);
+            end
+            if isfield(cfg, 'velocityTolerance')
+                obj.VelocityToleranceEdit.Value = cfg.velocityTolerance;
             end
 
             if isfield(cfg, 'rdProjectionMode')
@@ -455,6 +505,8 @@ classdef ProcessingWindow < handle
 
             cfg.candidateRangeMin = obj.RangeMinEdit.Value;
             cfg.candidateRangeMax = obj.RangeMaxEdit.Value;
+            cfg.displayRangeMin = obj.DisplayRangeMinEdit.Value;
+            cfg.displayRangeMax = obj.DisplayRangeMaxEdit.Value;
             cfg.candidateThresholdDb = ...
                 obj.CandidateThresholdEdit.Value;
             cfg.maxCandidatesPerWindow = ...
@@ -464,8 +516,16 @@ classdef ProcessingWindow < handle
             cfg.fitSpeedMax = obj.FitSpeedMaxEdit.Value;
             cfg.measuredSpeed = abs(obj.ReferenceSpeedEdit.Value);
             cfg.trackTolerance = obj.TrackToleranceEdit.Value;
+            cfg.trackStartTimeMs = obj.TrackStartTimeEdit.Value;
+            cfg.trackEndTimeMs = obj.TrackEndTimeEdit.Value;
             cfg.minTrackWindows = ...
                 round(obj.MinTrackWindowsEdit.Value);
+
+            cfg.highSpeedMin = max(0, obj.HighSpeedMinEdit.Value);
+            cfg.useFullAliasedVelocityAxis = cfg.highSpeedMin <= 0;
+            cfg.useVelocityHardGate = ...
+                logical(obj.VelocityHardGateCheckBox.Value);
+            cfg.velocityTolerance = obj.VelocityToleranceEdit.Value;
 
             cfg.rdProjectionMode = ...
                 string(obj.ProjectionDropDown.Value);
@@ -507,7 +567,25 @@ classdef ProcessingWindow < handle
             end
             if cfg.candidateRangeMin < 0
                 error('radarui:InvalidRangeGate', ...
-                    '距离下限不能为负数。');
+                    '候选距离下限不能为负数。');
+            end
+            if cfg.displayRangeMin < 0 ...
+                    || cfg.displayRangeMax <= cfg.displayRangeMin
+                error('radarui:InvalidDisplayRange', ...
+                    '显示距离范围必须满足 0 <= 下限 < 上限。');
+            end
+            if cfg.trackEndTimeMs < cfg.trackStartTimeMs
+                error('radarui:InvalidTrackTimeGate', ...
+                    '轨迹终止时间不能小于起始时间。');
+            end
+            if ~isfinite(cfg.velocityTolerance) ...
+                    || cfg.velocityTolerance <= 0
+                error('radarui:InvalidVelocityTolerance', ...
+                    '速度容差必须为正数。');
+            end
+            if ~isfinite(cfg.highSpeedMin) || cfg.highSpeedMin < 0
+                error('radarui:InvalidHighSpeedMin', ...
+                    '最小模糊速度不能为负数。');
             end
             if ~isfinite(cfg.measuredSpeed) || cfg.measuredSpeed <= 0
                 error('radarui:InvalidReferenceSpeed', ...
@@ -837,12 +915,41 @@ classdef ProcessingWindow < handle
             colorbar(obj.EnhancedRdAxes);
             grid(obj.EnhancedRdAxes, 'on');
 
-            rangeMin = result.cfg.candidateRangeMin;
-            rangeMax = result.cfg.candidateRangeMax;
-            if isfinite(rangeMin) && isfinite(rangeMax) ...
-                    && rangeMax > rangeMin
-                ylim(obj.EnhancedRdAxes, [rangeMin rangeMax]);
+            displayMin = max( ...
+                min(result.derived.rangeAxis), ...
+                result.cfg.displayRangeMin);
+            displayMax = min( ...
+                max(result.derived.rangeAxis), ...
+                result.cfg.displayRangeMax);
+
+            if isfinite(displayMin) && isfinite(displayMax) ...
+                    && displayMax > displayMin
+                ylim(obj.EnhancedRdAxes, [displayMin displayMax]);
             end
+
+            if isfield(result.cfg, 'rdEnhancedRangeTimeClim') ...
+                    && numel(result.cfg.rdEnhancedRangeTimeClim) == 2
+                clim(obj.EnhancedRdAxes, ...
+                    result.cfg.rdEnhancedRangeTimeClim);
+            end
+
+            yline( ...
+                obj.EnhancedRdAxes, ...
+                result.cfg.candidateRangeMin, ...
+                'w:', ...
+                '候选下限', ...
+                'LineWidth', 1.2, ...
+                'LabelHorizontalAlignment', 'left', ...
+                'HandleVisibility', 'off');
+
+            yline( ...
+                obj.EnhancedRdAxes, ...
+                result.cfg.candidateRangeMax, ...
+                'w:', ...
+                '候选上限', ...
+                'LineWidth', 1.2, ...
+                'LabelHorizontalAlignment', 'left', ...
+                'HandleVisibility', 'off');
 
             candidates = result.candidateTable;
             if ~isempty(candidates)
