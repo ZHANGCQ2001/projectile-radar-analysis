@@ -493,6 +493,35 @@ classdef ProcessingWindow < handle
                     round(obj.TargetEndEdit.Value);
             end
 
+            if cfg.framePeriod <= 0 || ~isfinite(cfg.framePeriod)
+                error('radarui:InvalidFramePeriod', ...
+                    '帧周期必须为正数。');
+            end
+            if cfg.winSize < 2 || cfg.winStep < 1
+                error('radarui:InvalidWindow', ...
+                    '短时窗至少为 2 Chirp，滑动步进至少为 1 Chirp。');
+            end
+            if cfg.maxCandidatesPerWindow < 1
+                error('radarui:InvalidCandidateCount', ...
+                    '每窗候选数至少为 1。');
+            end
+            if cfg.candidateRangeMin < 0
+                error('radarui:InvalidRangeGate', ...
+                    '距离下限不能为负数。');
+            end
+            if ~isfinite(cfg.measuredSpeed) || cfg.measuredSpeed <= 0
+                error('radarui:InvalidReferenceSpeed', ...
+                    '参考速度必须为正数。');
+            end
+            if ~isfinite(cfg.trackTolerance) || cfg.trackTolerance <= 0
+                error('radarui:InvalidTrackTolerance', ...
+                    '轨迹容差必须为正数。');
+            end
+            if cfg.minTrackWindows < 2
+                error('radarui:InvalidTrackLength', ...
+                    '最少轨迹点至少为 2。');
+            end
+
             cfg = pradar.validateConfig(cfg);
         end
 
@@ -896,7 +925,7 @@ classdef ProcessingWindow < handle
                 return;
             end
 
-            [~, baseName, ~] = fileparts(obj.Result.dataFile);
+            [~, baseName, ~] = fileparts(char(obj.Result.dataFile));
             prefix = fullfile(outputDir, baseName);
 
             result = obj.Result; %#ok<NASGU>
@@ -921,7 +950,7 @@ classdef ProcessingWindow < handle
                 cleanupObject = onCleanup(@() fclose(fid)); %#ok<NASGU>
                 summaryLines = string(obj.SummaryTextArea.Value);
                 for idx = 1:numel(summaryLines)
-                    fprintf(fid, '%s\n', summaryLines(idx));
+                    fprintf(fid, '%s\n', char(summaryLines(idx)));
                 end
             end
 
