@@ -154,11 +154,11 @@ classdef ProcessingWindow < handle
             obj.ControlPanel.Layout.Row = 1;
             obj.ControlPanel.Layout.Column = 1;
 
-            obj.ControlGrid = uigridlayout(obj.ControlPanel, [20 4]);
+            obj.ControlGrid = uigridlayout(obj.ControlPanel, [21 4]);
             obj.ControlGrid.ColumnWidth = {92, 72, 92, '1x'};
             obj.ControlGrid.RowHeight = { ...
                 26, 34, 24, 26, 26, 26, 26, 26, 26, 26, ...
-                26, 26, 26, 26, 26, 26, 32, 30, 34, '1x'};
+                26, 26, 26, 26, 26, 26, 26, 32, 30, 34, '1x'};
             obj.ControlGrid.Padding = [8 8 8 8];
             obj.ControlGrid.RowSpacing = 5;
             obj.ControlGrid.ColumnSpacing = 5;
@@ -258,15 +258,15 @@ classdef ProcessingWindow < handle
             obj.MeanRemovalCheckBox = uicheckbox(obj.ControlGrid);
             obj.MeanRemovalCheckBox.Text = '慢时间去均值';
             obj.MeanRemovalCheckBox.Layout.Row = 15;
-            obj.MeanRemovalCheckBox.Layout.Column = 3;
+            obj.MeanRemovalCheckBox.Layout.Column = [3 4];
 
             obj.KeepIntermediateCheckBox = uicheckbox(obj.ControlGrid);
             obj.KeepIntermediateCheckBox.Text = '保留完整 RD Cube';
-            obj.KeepIntermediateCheckBox.Layout.Row = 15;
-            obj.KeepIntermediateCheckBox.Layout.Column = 4;
+            obj.KeepIntermediateCheckBox.Layout.Row = 16;
+            obj.KeepIntermediateCheckBox.Layout.Column = [1 4];
 
             buttonGrid = uigridlayout(obj.ControlGrid, [1 3]);
-            buttonGrid.Layout.Row = 16;
+            buttonGrid.Layout.Row = 17;
             buttonGrid.Layout.Column = [1 4];
             buttonGrid.ColumnWidth = {'1x', '1x', '1x'};
             buttonGrid.Padding = [0 0 0 0];
@@ -289,13 +289,13 @@ classdef ProcessingWindow < handle
             obj.ProgressGauge = uigauge(obj.ControlGrid, 'linear');
             obj.ProgressGauge.Limits = [0 100];
             obj.ProgressGauge.Value = 0;
-            obj.ProgressGauge.Layout.Row = 17;
+            obj.ProgressGauge.Layout.Row = 18;
             obj.ProgressGauge.Layout.Column = [1 4];
 
             obj.StatusLabel = uilabel(obj.ControlGrid);
             obj.StatusLabel.Text = '就绪';
             obj.StatusLabel.WordWrap = 'on';
-            obj.StatusLabel.Layout.Row = 18;
+            obj.StatusLabel.Layout.Row = 19;
             obj.StatusLabel.Layout.Column = [1 4];
 
             noteLabel = uilabel(obj.ControlGrid);
@@ -303,7 +303,7 @@ classdef ProcessingWindow < handle
                 '候选距离只限制算法搜索；显示距离只控制图像范围。' ...
                 '参考速度用于速度约束与解模糊。'];
             noteLabel.WordWrap = 'on';
-            noteLabel.Layout.Row = [19 20];
+            noteLabel.Layout.Row = [20 21];
             noteLabel.Layout.Column = [1 4];
 
             obj.TabGroup = uitabgroup(obj.MainGrid);
