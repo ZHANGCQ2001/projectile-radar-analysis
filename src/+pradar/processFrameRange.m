@@ -1,5 +1,23 @@
-function output = processFrameRange(fid, frameStart, frameEnd, cfg, derived)
-%PROCESSFRAMERANGE Process physical frames into range-time and RD power cubes.
+function output = processFrameRange( ...
+        fid, frameStart, frameEnd, cfg, derived, ...
+        progressFcn, cancelFcn, stageName)
+%PROCESSFRAMERANGE Process physical frames into range-time and RD products.
+%
+%   The first five arguments preserve the original API.
+%   Optional arguments are used by GUI callers:
+%       progressFcn(stageName, completedFrames, totalFrames)
+%       cancelFcn() -> logical
+%       stageName   -> string/char label
+
+    if nargin < 6
+        progressFcn = [];
+    end
+    if nargin < 7
+        cancelFcn = [];
+    end
+    if nargin < 8 || strlength(string(stageName)) == 0
+        stageName = "frames";
+    end
 
     numFrames = frameEnd - frameStart + 1;
     totalChirps = numFrames * cfg.numChirpsPerFrame;
@@ -9,7 +27,8 @@ function output = processFrameRange(fid, frameStart, frameEnd, cfg, derived)
         cfg.rangeFftSize, totalChirps, 'single');
     output.chirpTimeMs = nan(1, totalChirps);
     output.rdPowerCube = nan( ...
-        cfg.rangeFftSize, cfg.dopplerFftSize, totalWindows, 'single');
+        cfg.rangeFftSize, cfg.dopplerFftSize, ...
+        totalWindows, 'single');
     output.windowTimeMs = nan(1, totalWindows);
     output.windowPhysicalFrame = nan(1, totalWindows);
     output.windowIndexInFrame = nan(1, totalWindows);
@@ -19,52 +38,79 @@ function output = processFrameRange(fid, frameStart, frameEnd, cfg, derived)
     windowColumn = 1;
 
     for frameIndex = frameStart:frameEnd
-        fprintf('  Processing physical frame %d / %d\n', ...
-            frameIndex, frameEnd);
+        checkCancelled(cancelFcn);
+
+        completedFrames = frameIndex - frameStart;
+
+        if isempty(progressFcn)
+            fprintf('  Processing physical frame %d / %d\n', ...
+                frameIndex, frameEnd);
+        else
+            progressFcn(stageName, completedFrames, numFrames);
+        end
 
         adcFrame = pradar.readDca1000Frame( ...
             fid, frameIndex, cfg, derived);
 
         rangeFftAll = fft( ...
-            adcFrame .* derived.rangeWindow, cfg.rangeFftSize, 1);
+            adcFrame .* derived.rangeWindow, ...
+            cfg.rangeFftSize, 1);
         rangePower = sum(abs(rangeFftAll).^2, 3);
 
-        chirpEndColumn = chirpColumn + cfg.numChirpsPerFrame - 1;
+        chirpEndColumn = ...
+            chirpColumn + cfg.numChirpsPerFrame - 1;
         chirpColumns = chirpColumn:chirpEndColumn;
-        output.rangePowerTime(:, chirpColumns) = single(rangePower);
+
+        output.rangePowerTime(:, chirpColumns) = ...
+            single(rangePower);
 
         relativeFrameIndex = frameIndex - frameStart;
         output.chirpTimeMs(chirpColumns) = ...
             (relativeFrameIndex * cfg.framePeriod ...
-            + (0:cfg.numChirpsPerFrame - 1) * cfg.chirpPeriod) * 1e3;
+            + (0:cfg.numChirpsPerFrame - 1) ...
+            * cfg.chirpPeriod) * 1e3;
+
         chirpColumn = chirpEndColumn + 1;
 
         for localWindowIndex = 1:derived.windowsPerFrame
-            chirpStart = (localWindowIndex - 1) * cfg.winStep + 1;
+            checkCancelled(cancelFcn);
+
+            chirpStart = ...
+                (localWindowIndex - 1) * cfg.winStep + 1;
             chirpEnd = chirpStart + cfg.winSize - 1;
             chirpIndices = chirpStart:chirpEnd;
 
             adcWindow = adcFrame(:, chirpIndices, :);
-            if cfg.slowTimeMeanRemoval
-                adcWindow = adcWindow - mean(adcWindow, 2);
-            end
+            windowResult = pradar.processWindow( ...
+                adcWindow, cfg, derived);
 
-            rangeFftWindow = fft( ...
-                adcWindow .* derived.rangeWindow, cfg.rangeFftSize, 1);
-            windowedRangeData = rangeFftWindow .* derived.dopplerWindow;
-            rangeDoppler = fftshift( ...
-                fft(windowedRangeData, cfg.dopplerFftSize, 2), 2);
-            rdPower = sum(abs(rangeDoppler).^2, 3);
-            output.rdPowerCube(:, :, windowColumn) = single(rdPower);
+            output.rdPowerCube(:, :, windowColumn) = ...
+                windowResult.rdPower;
 
             windowCenterChirp = ...
                 (chirpStart - 1) + (cfg.winSize - 1) / 2;
+
             output.windowTimeMs(windowColumn) = ...
                 (relativeFrameIndex * cfg.framePeriod ...
                 + windowCenterChirp * cfg.chirpPeriod) * 1e3;
+
             output.windowPhysicalFrame(windowColumn) = frameIndex;
-            output.windowIndexInFrame(windowColumn) = localWindowIndex;
+            output.windowIndexInFrame(windowColumn) = ...
+                localWindowIndex;
+
             windowColumn = windowColumn + 1;
         end
+
+        if ~isempty(progressFcn)
+            progressFcn(stageName, ...
+                completedFrames + 1, numFrames);
+        end
+    end
+end
+
+function checkCancelled(cancelFcn)
+    if ~isempty(cancelFcn) && cancelFcn()
+        error('pradar:Cancelled', ...
+            'Processing was cancelled by the user.');
     end
 end
