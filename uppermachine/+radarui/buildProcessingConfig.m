@@ -57,6 +57,22 @@ function cfg = buildProcessingConfig(appConfig)
     cfg.highSpeedMin = 0;
     cfg.rdProjectionMode = "range";
 
+    % Keep algorithm gates separate from display limits. The default GUI
+    % shows a wider scene while candidate extraction may use a tighter gate.
+    cfg.displayRangeMin = 0;
+    cfg.displayRangeMax = 6;
+
+    % A reference speed is available in the upper machine, so velocity
+    % consistency can safely participate in track association by default.
+    cfg.useVelocityHardGate = true;
+    cfg.velocityTolerance = 70;
+    cfg.velocityCostWeight = 0.60;
+    cfg.measuredAliasTolerance = 60;
+    cfg.measuredAliasCostWeight = 0.60;
+    cfg.strengthCostWeight = 0.18;
+    cfg.trackStartTimeMs = 0;
+    cfg.trackEndTimeMs = Inf;
+
     referenceSpeed = abs(getValue(appConfig, 'approxSpeed', 400));
     if ~isfinite(referenceSpeed) || referenceSpeed <= 0
         referenceSpeed = 400;
