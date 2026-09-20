@@ -7,6 +7,7 @@ function startup
     addpath(fullfile(rootDir, 'scripts'));
     addpath(fullfile(rootDir, 'examples'));
     addpath(fullfile(rootDir, 'tests'));
+    addpath(fullfile(rootDir, 'uppermachine'));
 
     fprintf('Projectile Radar Data Analysis paths added.\n');
 end
