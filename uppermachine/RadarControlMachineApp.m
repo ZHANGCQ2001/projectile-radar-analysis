@@ -121,7 +121,9 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
         
 
         % 数据处理子窗口
-        processingWindow% 采集保存配置
+        processingWindow
+
+        % 采集保存配置
         cfg_CaptureSizeMB = 800;
         captureOutputDir
         runtimeJsonPath
@@ -1474,7 +1476,9 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.LogTextArea.Value = [app.LogTextArea.Value; {'[成功] 采集已停止，.bin 数据已保存至目标文件夹。'}];
             
             scroll(app.LogTextArea, 'bottom');
-        end        % Button pushed function: ProcessButton
+        end
+
+        % Button pushed function: ProcessButton
         function ProcessButtonPushed(app, event)
             try
                 appRoot = getAppRoot(app);
