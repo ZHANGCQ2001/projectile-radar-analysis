@@ -17,6 +17,7 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
         FrameSlider        matlab.ui.control.Slider
         LogTextArea        matlab.ui.control.TextArea
         StopButton         matlab.ui.control.Button
+        ProcessButton      matlab.ui.control.Button
         StartButton        matlab.ui.control.Button
         FPGAButton         matlab.ui.control.Button
         JSONPathEditField  matlab.ui.control.EditField
@@ -117,7 +118,10 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
         % 播放状态控制
         isPlaying = false;
 
-        % 采集保存配置
+        
+
+        % 数据处理子窗口
+        processingWindow% 采集保存配置
         cfg_CaptureSizeMB = 800;
         captureOutputDir
         runtimeJsonPath
@@ -1470,7 +1474,72 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.LogTextArea.Value = [app.LogTextArea.Value; {'[成功] 采集已停止，.bin 数据已保存至目标文件夹。'}];
             
             scroll(app.LogTextArea, 'bottom');
+        end        % Button pushed function: ProcessButton
+        function ProcessButtonPushed(app, event)
+            try
+                appRoot = getAppRoot(app);
+                repoRoot = fileparts(appRoot);
+                srcDir = fullfile(repoRoot, 'src');
+                if isfolder(srcDir)
+                    addpath(srcDir);
+                end
+                addpath(appRoot);
+
+                appConfig = struct();
+                appConfig.numSamples = app.cfg_Samples;
+                appConfig.numChirpsPerFrame = app.cfg_Chirps;
+                appConfig.numRx = app.cfg_NumRx;
+                appConfig.numTx = app.cfg_NumTx;
+                appConfig.rangeFftSize = app.cfg_RangeFftSize;
+                appConfig.adcSampleRateMsps = app.cfg_AdcSampleRate;
+                appConfig.slopeMHzPerUs = app.cfg_Slope;
+                appConfig.startFreqGHz = app.cfg_StartFreqGHz;
+                appConfig.chirpPeriodUs = app.cfg_ChirpPeriodUs;
+                appConfig.framePeriodMs = 3.5;
+
+                appConfig.processingWinSize = min(16, app.cfg_Chirps);
+                appConfig.processingWinStep = ...
+                    appConfig.processingWinSize;
+                appConfig.processingDopplerFftSize = ...
+                    max(128, appConfig.processingWinSize);
+
+                appConfig.approxSpeed = abs(app.ApproxSpeedEdit.Value);
+                if ~isfinite(appConfig.approxSpeed) ...
+                        || appConfig.approxSpeed <= 0
+                    appConfig.approxSpeed = 400;
+                end
+
+                processingCfg = ...
+                    radarui.buildProcessingConfig(appConfig);
+                dataFile = app.DataPathEdit.Value;
+
+                if ~isempty(app.processingWindow) ...
+                        && isvalid(app.processingWindow)
+                    app.processingWindow.setInput( ...
+                        dataFile, processingCfg);
+                else
+                    app.processingWindow = ...
+                        radarui.ProcessingWindow( ...
+                            dataFile, processingCfg);
+                end
+
+                app.LogTextArea.Value = [ ...
+                    app.LogTextArea.Value; ...
+                    {'[数据处理] 已打开弹丸雷达处理窗口。'}];
+                scroll(app.LogTextArea, 'bottom');
+            catch ME
+                app.LogTextArea.Value = [ ...
+                    app.LogTextArea.Value; ...
+                    {sprintf('[数据处理错误] %s', ME.message)}];
+                scroll(app.LogTextArea, 'bottom');
+                uialert( ...
+                    app.UIFigure, ...
+                    getReport(ME, 'extended', 'hyperlinks', 'off'), ...
+                    '无法打开数据处理');
+            end
         end
+
+
 
         % Button pushed function: LoadBtn
         function LoadBtnButtonPushed(app, event)
@@ -2514,6 +2583,14 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.StopButton.Position = [239 336 74 23];
             app.StopButton.Text = '停止采集';
 
+
+            % Create ProcessButton
+            app.ProcessButton = uibutton(app.UIFigure, 'push');
+            app.ProcessButton.ButtonPushedFcn = ...
+                createCallbackFcn(app, @ProcessButtonPushed, true);
+            app.ProcessButton.Position = [319 336 58 23];
+            app.ProcessButton.Text = '数据处理';
+
             % Create LogTextArea
             app.LogTextArea = uitextarea(app.UIFigure);
             app.LogTextArea.Position = [29 1 348 315];
@@ -2618,6 +2695,16 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
 
         % Code that executes before app deletion
         function delete(app)
+
+
+            % Close the optional processing window first.
+            try
+                if ~isempty(app.processingWindow) ...
+                        && isvalid(app.processingWindow)
+                    delete(app.processingWindow);
+                end
+            catch
+            end
 
             % Delete UIFigure when app is deleted
             delete(app.UIFigure)
