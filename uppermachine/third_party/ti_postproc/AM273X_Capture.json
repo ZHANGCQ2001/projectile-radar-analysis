@@ -1,0 +1,59 @@
+{
+  "DCA1000Config": {
+    "dataLoggingMode": "raw",
+    "dataTransferMode": "LVDSCapture",
+    "dataCaptureMode": "ethernetStream",
+    "lvdsMode": 1,
+    "dataFormatMode": 3,
+    "packetDelay_us": 25,
+    "ethernetConfig": {
+      "DCA1000IPAddress": "192.168.33.180",
+      "DCA1000ConfigPort": 4096,
+      "DCA1000DataPort": 4098
+    },
+    "ethernetConfigUpdate": {
+      "systemIPAddress": "192.168.33.30",
+      "DCA1000IPAddress": "192.168.33.180",
+      "DCA1000MACAddress": "0c.22.38.4e.5a.0c",
+      "DCA1000ConfigPort": 4096,
+      "DCA1000DataPort": 4098
+    },
+    "captureConfig": {
+      "fileBasePath": "C:\\ti\\DATA\\AWR2243",
+      "filePrefix": "am273x_",
+      "maxRecFileSize_MB": 256,
+      "sequenceNumberEnable": 1,
+      "captureStopMode": "bytes",
+      "bytesToCapture": 800000000,
+      "durationToCapture_ms": 4000,
+      "framesToCapture": 40
+    },
+    "dataFormatConfig": {
+      "MSBToggle": 0,
+      "laneFmtMap": 0,
+      "reorderEnable": 0,
+      "dataPortConfig": [
+        {
+          "portIdx": 0,
+          "dataType": "real"
+        },
+        {
+          "portIdx": 1,
+          "dataType": "real"
+        },
+        {
+          "portIdx": 2,
+          "dataType": "real"
+        },
+        {
+          "portIdx": 3,
+          "dataType": "real"
+        },
+        {
+          "portIdx": 4,
+          "dataType": "real"
+        }
+      ]
+    }
+  }
+}
