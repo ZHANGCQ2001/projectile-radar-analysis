@@ -4773,3 +4773,332 @@ stop_record
 
 Fri Jul 24 10:41:20 2026
 No record process is running.
+
+Mon Sep 21 14:14:44 2026
+stop_record
+
+Mon Sep 21 14:14:44 2026
+No record process is running.
+
+Mon Sep 21 14:14:44 2026
+FPGA Configuration Command (req)
+
+Mon Sep 21 14:14:54 2026
+FPGA Configuration : 
+Timeout Error! System disconnected
+
+Mon Sep 21 14:14:54 2026
+Return status : -5
+
+Mon Sep 21 14:15:20 2026
+stop_record
+
+Mon Sep 21 14:15:20 2026
+No record process is running.
+
+Mon Sep 21 14:15:20 2026
+FPGA Configuration Command (req)
+
+Mon Sep 21 14:15:20 2026
+FPGA Configuration command : Success
+
+Mon Sep 21 14:15:20 2026
+Return status : 0
+
+Mon Sep 21 14:15:20 2026
+Configure Record Command (req)
+
+Mon Sep 21 14:15:20 2026
+Configure Record command : Success
+
+Mon Sep 21 14:15:20 2026
+Return status : 0
+
+Mon Sep 21 14:15:53 2026
+Start Record Command (req)
+
+Mon Sep 21 14:15:54 2026
+Start Record Command (req)
+
+Mon Sep 21 14:15:54 2026
+Start Record command : Success
+
+Mon Sep 21 14:16:04 2026
+Start Record : 
+Timeout Error! System disconnected
+
+Mon Sep 21 14:16:04 2026
+Return status : -5
+
+Mon Sep 21 14:16:12 2026
+stop_record
+
+Mon Sep 21 14:16:12 2026
+No record process is running.
+
+Mon Sep 21 14:16:26 2026
+Start Record Command (req)
+
+Mon Sep 21 14:16:26 2026
+Start Record Command (req)
+
+Mon Sep 21 14:16:26 2026
+Start Record command : Success
+
+Mon Sep 21 14:16:26 2026
+Return status : 0
+
+Mon Sep 21 14:16:26 2026
+Start Record command : Success
+
+Mon Sep 21 14:16:47 2026
+Stop Record Command (req)
+
+Mon Sep 21 14:16:47 2026
+Record stop is done successfully
+
+Mon Sep 21 14:16:48 2026
+Stop Record command : Success
+
+Mon Sep 21 14:54:41 2026
+stop_record
+
+Mon Sep 21 14:54:41 2026
+No record process is running.
+
+Mon Sep 21 14:54:41 2026
+FPGA Configuration Command (req)
+
+Mon Sep 21 14:54:51 2026
+FPGA Configuration : 
+Timeout Error! System disconnected
+
+Mon Sep 21 14:54:51 2026
+Return status : -5
+
+Mon Sep 21 14:54:53 2026
+stop_record
+
+Mon Sep 21 14:54:53 2026
+No record process is running.
+
+Mon Sep 21 14:54:54 2026
+FPGA Configuration Command (req)
+
+Mon Sep 21 14:54:54 2026
+FPGA Configuration command : Success
+
+Mon Sep 21 14:54:54 2026
+Return status : 0
+
+Mon Sep 21 14:54:54 2026
+Configure Record Command (req)
+
+Mon Sep 21 14:54:54 2026
+Configure Record command : Success
+
+Mon Sep 21 14:54:54 2026
+Return status : 0
+
+Mon Sep 21 14:55:42 2026
+Start Record Command (req)
+
+Mon Sep 21 14:55:42 2026
+Start Record Command (req)
+
+Mon Sep 21 14:55:42 2026
+Start Record command : Success
+
+Mon Sep 21 14:55:42 2026
+Return status : 0
+
+Mon Sep 21 14:55:42 2026
+Start Record command : Success
+
+Mon Sep 21 14:56:02 2026
+DDR is full
+
+Mon Sep 21 14:56:02 2026
+LVDS buffer full
+
+Mon Sep 21 14:56:03 2026
+Stop Record Command (req)
+
+Mon Sep 21 14:56:03 2026
+Record stop is done successfully
+
+Mon Sep 21 14:56:04 2026
+Stop Record command : Success
+
+Mon Sep 21 15:20:10 2026
+stop_record
+
+Mon Sep 21 15:20:10 2026
+No record process is running.
+
+Mon Sep 21 15:20:10 2026
+FPGA Configuration Command (req)
+
+Mon Sep 21 15:20:20 2026
+FPGA Configuration : 
+Timeout Error! System disconnected
+
+Mon Sep 21 15:20:20 2026
+Return status : -5
+
+Mon Sep 21 15:20:26 2026
+stop_record
+
+Mon Sep 21 15:20:26 2026
+No record process is running.
+
+Mon Sep 21 15:20:26 2026
+FPGA Configuration Command (req)
+
+Mon Sep 21 15:20:26 2026
+FPGA Configuration command : Success
+
+Mon Sep 21 15:20:26 2026
+Return status : 0
+
+Mon Sep 21 15:20:26 2026
+Configure Record Command (req)
+
+Mon Sep 21 15:20:26 2026
+Configure Record command : Success
+
+Mon Sep 21 15:20:26 2026
+Return status : 0
+
+Mon Sep 21 15:20:34 2026
+Start Record Command (req)
+
+Mon Sep 21 15:20:35 2026
+Start Record Command (req)
+
+Mon Sep 21 15:20:35 2026
+Start Record command : Success
+
+Mon Sep 21 15:20:35 2026
+Return status : 0
+
+Mon Sep 21 15:20:35 2026
+Start Record command : Success
+
+Mon Sep 21 15:20:54 2026
+DDR is full
+
+Mon Sep 21 15:20:54 2026
+LVDS buffer full
+
+Mon Sep 21 15:20:56 2026
+Stop Record Command (req)
+
+Mon Sep 21 15:20:56 2026
+Record stop is done successfully
+
+Mon Sep 21 15:20:57 2026
+Stop Record command : Success
+
+Mon Sep 21 15:32:30 2026
+stop_record
+
+Mon Sep 21 15:32:30 2026
+No record process is running.
+
+Mon Sep 21 15:32:30 2026
+FPGA Configuration Command (req)
+
+Mon Sep 21 15:32:40 2026
+FPGA Configuration : 
+Timeout Error! System disconnected
+
+Mon Sep 21 15:32:40 2026
+Return status : -5
+
+Mon Sep 21 15:32:47 2026
+stop_record
+
+Mon Sep 21 15:32:47 2026
+No record process is running.
+
+Mon Sep 21 15:32:48 2026
+FPGA Configuration Command (req)
+
+Mon Sep 21 15:32:48 2026
+FPGA Configuration command : Success
+
+Mon Sep 21 15:32:48 2026
+Return status : 0
+
+Mon Sep 21 15:32:48 2026
+Configure Record Command (req)
+
+Mon Sep 21 15:32:48 2026
+Configure Record command : Success
+
+Mon Sep 21 15:32:48 2026
+Return status : 0
+
+Mon Sep 21 15:32:52 2026
+Start Record Command (req)
+
+Mon Sep 21 15:33:02 2026
+System is disconnected.
+
+Mon Sep 21 15:33:02 2026
+Return status : -5
+
+Mon Sep 21 15:33:20 2026
+stop_record
+
+Mon Sep 21 15:33:20 2026
+No record process is running.
+
+Mon Sep 21 15:33:21 2026
+FPGA Configuration Command (req)
+
+Mon Sep 21 15:33:21 2026
+FPGA Configuration command : Success
+
+Mon Sep 21 15:33:21 2026
+Return status : 0
+
+Mon Sep 21 15:33:21 2026
+Configure Record Command (req)
+
+Mon Sep 21 15:33:21 2026
+Configure Record command : Success
+
+Mon Sep 21 15:33:21 2026
+Return status : 0
+
+Mon Sep 21 15:33:25 2026
+Start Record Command (req)
+
+Mon Sep 21 15:33:25 2026
+Start Record Command (req)
+
+Mon Sep 21 15:33:25 2026
+Start Record command : Success
+
+Mon Sep 21 15:33:25 2026
+Return status : 0
+
+Mon Sep 21 15:33:25 2026
+Start Record command : Success
+
+Mon Sep 21 15:34:00 2026
+DDR is full
+
+Mon Sep 21 15:34:00 2026
+LVDS buffer full
+
+Mon Sep 21 15:34:02 2026
+Stop Record Command (req)
+
+Mon Sep 21 15:34:02 2026
+Record stop is done successfully
+
+Mon Sep 21 15:34:03 2026
+Stop Record command : Success
