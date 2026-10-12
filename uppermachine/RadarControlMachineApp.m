@@ -519,6 +519,15 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             edgeR = max(1, app.cfg_Tr + app.cfg_Gr + 1);
             edgeD = max(1, app.cfg_Td + app.cfg_Gd + 1);
             [numRangeBins, numDopplerBins] = size(snrMap);
+
+            % RD matrix and physical axes must describe the same grid.
+            % This also prevents stale RD data from an old WinSize from
+            % indexing a newly rebuilt velocity axis.
+            if numel(app.rangeAxis) ~= numRangeBins || ...
+                    numel(app.vel_axis) ~= numDopplerBins
+                return;
+            end
+
             snrMap(1:min(edgeR, numRangeBins), :) = -Inf;
             snrMap(max(1, numRangeBins-edgeR+1):numRangeBins, :) = -Inf;
             snrMap(:, 1:min(edgeD, numDopplerBins)) = -Inf;
@@ -1194,6 +1203,10 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             end
 
             rd_shifted = app.current_rd_db_shifted;
+            if numel(app.rangeAxis) ~= size(rd_shifted, 1) || ...
+                    numel(app.vel_axis) ~= size(rd_shifted, 2)
+                return;
+            end
             noiseFloor = conv2(rd_shifted, app.cfar_kernel, 'same');
             snrMap = rd_shifted - noiseFloor;
 
@@ -1553,6 +1566,13 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
                 scroll(app.LogTextArea, 'bottom');
                 return;
             end
+
+            % Clear display/cache state created with the previous window
+            % parameters before rebuilding the velocity axis and RD grid.
+            app.current_rd_db_shifted = [];
+            app.lastPhysicalMaxSnrLogWindowIdx = NaN;
+            hidePhysicalMaxSnrMarker(app);
+
             app.LogTextArea.Value = [app.LogTextArea.Value; {'------------------------------------'}];
             app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('开始加载文件: %s', app.DataPathEdit.Value)}];
             drawnow;
@@ -1754,9 +1774,10 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('[成功] 已完成最大 SNR 趋势统计，有效滑窗 %d / %d。', validCount, total_windows)}];
             scroll(app.LogTextArea, 'bottom');
 
-            app.ViewDropDownValueChanged();
-
-            % 渲染第一帧
+            % Render the first window before refreshing the selected view.
+            % updateFrame() rebuilds current_rd_db_shifted and then refreshes
+            % the view, so calling ViewDropDownValueChanged() here first can
+            % expose stale RD data after WinSize changes.
             app.updateFrame(1);
         end
 
