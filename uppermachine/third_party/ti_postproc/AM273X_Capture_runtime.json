@@ -20,7 +20,7 @@
     },
     "captureConfig": {
       "fileBasePath": "C:\\CaptureData",
-      "filePrefix": "am273x_",
+      "filePrefix": "am273x_20261012_154809",
       "maxRecFileSize_MB": 256,
       "sequenceNumberEnable": 1,
       "captureStopMode": "infinite",
