@@ -1,0 +1,62 @@
+name: Fix window RD cache mismatch
+
+on:
+  push:
+    branches:
+      - feature/uppermachine-data-processing-v1
+    paths:
+      - .github/workflows/fix-window-rd-cache.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/uppermachine-data-processing-v1
+
+      - name: Patch RadarControlMachineApp
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('uppermachine/RadarControlMachineApp.m')
+          text = path.read_text(encoding='utf-8')
+
+          old = """            [numRangeBins, numDopplerBins] = size(snrMap);\n            snrMap(1:min(edgeR, numRangeBins), :) = -Inf;\n"""
+          new = """            [numRangeBins, numDopplerBins] = size(snrMap);\n\n            % RD matrix and physical axes must describe the same grid.\n            % This also prevents stale RD data from an old WinSize from\n            % indexing a newly rebuilt velocity axis.\n            if numel(app.rangeAxis) ~= numRangeBins || ...\n                    numel(app.vel_axis) ~= numDopplerBins\n                return;\n            end\n\n            snrMap(1:min(edgeR, numRangeBins), :) = -Inf;\n"""
+          if old not in text:
+              raise SystemExit('findMaxSnrPointInShiftedRd anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = """            rd_shifted = app.current_rd_db_shifted;\n            noiseFloor = conv2(rd_shifted, app.cfar_kernel, 'same');\n"""
+          new = """            rd_shifted = app.current_rd_db_shifted;\n            if numel(app.rangeAxis) ~= size(rd_shifted, 1) || ...\n                    numel(app.vel_axis) ~= size(rd_shifted, 2)\n                return;\n            end\n            noiseFloor = conv2(rd_shifted, app.cfar_kernel, 'same');\n"""
+          if old not in text:
+              raise SystemExit('logCurrentPhysicalMaxSnrPoint anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = """            end\n            app.LogTextArea.Value = [app.LogTextArea.Value; {'------------------------------------'}];\n            app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('开始加载文件: %s', app.DataPathEdit.Value)}];\n"""
+          new = """            end\n\n            % Clear display/cache state created with the previous window\n            % parameters before rebuilding the velocity axis and RD grid.\n            app.current_rd_db_shifted = [];\n            app.lastPhysicalMaxSnrLogWindowIdx = NaN;\n            hidePhysicalMaxSnrMarker(app);\n\n            app.LogTextArea.Value = [app.LogTextArea.Value; {'------------------------------------'}];\n            app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('开始加载文件: %s', app.DataPathEdit.Value)}];\n"""
+          if old not in text:
+              raise SystemExit('LoadBtn cache-clear anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = """            scroll(app.LogTextArea, 'bottom');\n\n            app.ViewDropDownValueChanged();\n\n            % 渲染第一帧\n            app.updateFrame(1);\n"""
+          new = """            scroll(app.LogTextArea, 'bottom');\n\n            % Render the first window before refreshing the selected view.\n            % updateFrame() rebuilds current_rd_db_shifted and then refreshes\n            % the view, so calling ViewDropDownValueChanged() here first can\n            % expose stale RD data after WinSize changes.\n            app.updateFrame(1);\n"""
+          if old not in text:
+              raise SystemExit('initial view-refresh anchor not found')
+          text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8', newline='\n')
+
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add uppermachine/RadarControlMachineApp.m
+          git diff --cached --check
+          git commit -m "fix RD cache mismatch after window size changes"
+          git push origin HEAD:feature/uppermachine-data-processing-v1
