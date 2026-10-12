@@ -5172,3 +5172,57 @@ Record stop is done successfully
 
 Mon Oct 12 15:48:32 2026
 Stop Record command : Success
+
+Mon Oct 12 16:13:35 2026
+stop_record
+
+Mon Oct 12 16:13:35 2026
+No record process is running.
+
+Mon Oct 12 16:13:35 2026
+FPGA Configuration Command (req)
+
+Mon Oct 12 16:13:35 2026
+FPGA Configuration command : Success
+
+Mon Oct 12 16:13:35 2026
+Return status : 0
+
+Mon Oct 12 16:13:35 2026
+Configure Record Command (req)
+
+Mon Oct 12 16:13:35 2026
+Configure Record command : Success
+
+Mon Oct 12 16:13:35 2026
+Return status : 0
+
+Mon Oct 12 16:13:40 2026
+Start Record Command (req)
+
+Mon Oct 12 16:13:41 2026
+Start Record Command (req)
+
+Mon Oct 12 16:13:41 2026
+Start Record command : Success
+
+Mon Oct 12 16:13:41 2026
+Return status : 0
+
+Mon Oct 12 16:13:41 2026
+Start Record command : Success
+
+Mon Oct 12 16:14:15 2026
+DDR is full
+
+Mon Oct 12 16:14:15 2026
+LVDS buffer full
+
+Mon Oct 12 16:14:17 2026
+Stop Record Command (req)
+
+Mon Oct 12 16:14:17 2026
+Record stop is done successfully
+
+Mon Oct 12 16:14:17 2026
+Stop Record command : Success
