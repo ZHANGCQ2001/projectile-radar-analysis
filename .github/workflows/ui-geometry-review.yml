@@ -41,6 +41,18 @@ jobs:
           Path('review-changed-paths.txt').write_text('\n'.join(i['path'] for i in records)+'\n')
       - name: Apply review refinements
         run: python .github/refine-ui-geometry.py
+      - name: Separate functional GUI checks from optional screenshot export
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('scripts/smoke_test_interfaces.m')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('function smoke_test_interfaces(outputDir)','function smoke_test_interfaces(outputDir, exportImages)',1)
+          s=s.replace('% Does not call any hardware/CLI commands. Requires a MATLAB desktop graphics\n% stack and Signal Processing Toolbox for the legacy overview RD calculation.', '% Does not call any hardware/CLI commands. Signal Processing Toolbox is\n% needed for the legacy overview RD calculation. Set exportImages=false in\n% headless CI; screenshot export requires a desktop graphics stack.',1)
+          s=s.replace("    if nargin < 1, outputDir = fullfile(tempdir,'radar-ui-smoke'); end", "    if nargin < 1, outputDir = fullfile(tempdir,'radar-ui-smoke'); end\n    if nargin < 2, exportImages = true; end",1)
+          s=s.replace("    exportapp(app.UIFigure,fullfile(outputDir,'interface1.png'));", "    if exportImages\n        exportapp(app.UIFigure,fullfile(outputDir,'interface1.png'));\n    end",1)
+          s=s.replace("    exportapp(win.UIFigure,fullfile(outputDir,'interface2.png'));", "    if exportImages\n        exportapp(win.UIFigure,fullfile(outputDir,'interface2.png'));\n    end\n    feval(win.RunButton.ButtonPushedFcn,win.RunButton,[]);\n    assert(startsWith(win.StatusLabel.Text,'处理完成'), ...\n        'Detailed processing did not complete: %s',win.StatusLabel.Text);\n    assert(strcmp(win.ExportButton.Enable,'on'));\n    fid = fopen(fullfile(outputDir,'ui-smoke-passed.txt'),'w');\n    assert(fid >= 0);\n    fprintf(fid,'PASS: overview load/SNR, frame handoff, geometry and speed setting retention, detailed processing.\\n');\n    fclose(fid);",1)
+          p.write_text(s,encoding='utf-8',newline='\n')
       - name: Check whitespace
         run: git diff --check
       - name: Install UI fonts
@@ -53,10 +65,10 @@ jobs:
         uses: matlab-actions/run-command@v3
         with:
           command: startup; mkdir('test-results'); suite = testsuite('tests','IncludeSubfolders',true); runner = matlab.unittest.TestRunner.withTextOutput; runner.addPlugin(matlab.unittest.plugins.XMLPlugin.producingJUnitFormat('test-results/junit.xml')); results = runner.run(suite); save('test-results/results.mat','results'); assertSuccess(results);
-      - name: Offline GUI smoke test
+      - name: Offline GUI functional smoke test
         uses: matlab-actions/run-command@v3
         with:
-          command: startup; addpath('scripts'); smoke_test_interfaces('ui-smoke');
+          command: startup; addpath('scripts'); smoke_test_interfaces('ui-smoke',false);
       - name: Commit tested source only and remove staging helpers
         run: |
           git config user.name 'github-actions[bot]'
