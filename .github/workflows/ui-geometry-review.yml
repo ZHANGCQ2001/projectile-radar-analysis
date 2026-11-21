@@ -7,7 +7,7 @@ permissions:
   contents: write
 jobs:
   regression:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +39,8 @@ jobs:
               path.write_bytes(new)
               print('Verified:', path)
           Path('review-changed-paths.txt').write_text('\n'.join(i['path'] for i in records)+'\n')
+      - name: Apply review refinements
+        run: python .github/refine-ui-geometry.py
       - name: Check whitespace
         run: git diff --check
       - name: Install UI fonts
@@ -60,7 +62,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           while IFS= read -r path; do git add -- "$path"; done < review-changed-paths.txt
-          git rm .github/ui-geometry-delta.*.b64 .github/workflows/ui-geometry-review.yml
+          git rm .github/ui-geometry-delta.*.b64 .github/refine-ui-geometry.py .github/workflows/ui-geometry-review.yml
           git diff --cached --check
           git commit -m 'fix: separate overview SNR and geometry-aware detailed velocity analysis'
           git push origin HEAD:fix/overview-snr-geometry
