@@ -44,8 +44,9 @@ function result = runAnalysis(cfg, dataFile)
     fprintf('Maximum unambiguous velocity: +/- %.3f m/s\n', ...
         derived.vMax);
     fprintf('Measured velocity: %.5f m/s\n', cfg.measuredSpeed);
-    fprintf('Measured aliased velocity: %+.3f m/s\n', ...
-        derived.measuredAliasedSpeed);
+    fprintf('Perpendicular distance: %.4f m; radial direction: %+d\n', ...
+        cfg.perpendicularDistance, cfg.radialDirection);
+    fprintf('Reference speed is along-trajectory; radial reference is computed per point.\n');
     fprintf('========================================\n');
 
     fid = fopen(dataFile, 'rb', 'ieee-le');
@@ -140,7 +141,7 @@ function result = runAnalysis(cfg, dataFile)
 
         couplingOffset = ...
             derived.centerFreq / cfg.slope ...
-            .* trackTable.UnwrappedVelocity_mps;
+            .* trackTable.UnwrappedRadialVelocity_mps;
         trackTable.RangeVelocityCouplingMagnitude_m = abs(couplingOffset);
         if cfg.applyRangeVelocityCouplingCorrection
             trackTable.CorrectedRange_m = trackTable.Range_m ...

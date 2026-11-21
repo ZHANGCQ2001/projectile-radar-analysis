@@ -16,6 +16,13 @@ function cfg = defaultConfig()
     cfg.framePeriod = 3.5e-3;
     cfg.c = 3e8;
 
+    % Straight-trajectory geometry. Distances are metres; reference/fit/
+    % unwrap speed bounds are ALONG-TRAJECTORY speeds. Legacy d=0, +1 is
+    % equivalent to radial-only processing. Split closest-approach crossings.
+    cfg.perpendicularDistance = 0;
+    cfg.radialDirection = 1;       % +1 receding, -1 approaching
+    cfg.minRadialProjection = 0.10; % reject ill-conditioned LOS correction
+
     % Short-time RD processing
     cfg.winSize = 16;
     cfg.winStep = 16;
@@ -71,7 +78,7 @@ function cfg = defaultConfig()
     cfg.unwrapMeasuredWeight = 1.00;
     cfg.unwrapFitWeight = 0.45;
     cfg.unwrapContinuityWeight = 0.80;
-    cfg.ambiguityNumberMin = -4;
+    cfg.ambiguityNumberMin = -12;
     cfg.ambiguityNumberMax = 12;
     cfg.unwrapSpeedMin = 0;
     cfg.unwrapSpeedMax = 2000;

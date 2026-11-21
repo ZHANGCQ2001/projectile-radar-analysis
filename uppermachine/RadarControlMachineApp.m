@@ -8,12 +8,6 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
         PlayButton         matlab.ui.control.StateButton
         FrameLabel         matlab.ui.control.Label
         SettingsBtn        matlab.ui.control.Button
-        ApproxSpeedEdit_2  matlab.ui.control.NumericEditField
-        Label_5            matlab.ui.control.Label
-        TargetRangeEdit    matlab.ui.control.NumericEditField
-        Label_7            matlab.ui.control.Label
-        PerpDistanceEdit   matlab.ui.control.NumericEditField
-        Label_6            matlab.ui.control.Label
         FrameSlider        matlab.ui.control.Slider
         LogTextArea        matlab.ui.control.TextArea
         StopButton         matlab.ui.control.Button
@@ -25,9 +19,6 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
         CLIPathEditField   matlab.ui.control.EditField
         Label_3            matlab.ui.control.Label
         Label_2            matlab.ui.control.Label
-        UnwrapBtn          matlab.ui.control.Button
-        ApproxSpeedEdit    matlab.ui.control.NumericEditField
-        Label              matlab.ui.control.Label
         ViewDropDown       matlab.ui.control.DropDown
         LoadBtn            matlab.ui.control.Button
         DataPathEdit       matlab.ui.control.EditField
@@ -49,15 +40,9 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
         FFT1DChirpLabel    matlab.ui.control.Label
         UIAxes_FFT1DLine     matlab.ui.control.UIAxes
         UIAxes_FFT1DHeatmap  matlab.ui.control.UIAxes
-        FitConfirmButton   matlab.ui.control.Button
-        FitEndEdit         matlab.ui.control.NumericEditField
-        FitEndLabel        matlab.ui.control.Label
-        FitStartEdit       matlab.ui.control.NumericEditField
-        FitStartLabel      matlab.ui.control.Label
-        UIAxes_FitVelocity matlab.ui.control.UIAxes
-        UIAxes_FitRange    matlab.ui.control.UIAxes
-        UIAxes_TrendVelocity  matlab.ui.control.UIAxes
-        UIAxes_PC          matlab.ui.control.UIAxes
+        UIAxes_SNR          matlab.ui.control.UIAxes
+        OverviewStartEdit   matlab.ui.control.NumericEditField
+        OverviewEndEdit     matlab.ui.control.NumericEditField
         UIAxes_RD          matlab.ui.control.UIAxes
     end
 
@@ -145,8 +130,6 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
 
         % 全局滑窗最大 SNR 统计
         trendWindowIdx
-        trendRange
-        trendVelocity
         trendSnr
         lastTrendLogWindowIdx = NaN
         lastPhysicalMaxSnrLogWindowIdx = NaN
@@ -558,8 +541,6 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
 
         function precomputeWindowTrends(app, total_windows)
             app.trendWindowIdx = 1:total_windows;
-            app.trendRange = NaN(1, total_windows);
-            app.trendVelocity = NaN(1, total_windows);
             app.trendSnr = NaN(1, total_windows);
             app.lastTrendLogWindowIdx = NaN;
 
@@ -574,7 +555,7 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             for w = 1:total_windows
                 rd_db = computeWindowRd(app, w);
                 if ~isempty(rd_db)
-                    [app.trendSnr(w), app.trendRange(w), app.trendVelocity(w)] = findMaxSnrPoint(app, rd_db);
+                    app.trendSnr(w) = findMaxSnrPoint(app, rd_db);
                 end
 
                 if w == 1 || w == total_windows || mod(w, updateStep) == 0
@@ -589,303 +570,52 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
 
         function clearTrendCache(app)
             app.trendWindowIdx = [];
-            app.trendRange = [];
-            app.trendVelocity = [];
             app.trendSnr = [];
             app.lastTrendLogWindowIdx = NaN;
         end
 
         function logCurrentTrendPoint(app, currentIdx)
-            if isempty(app.trendWindowIdx)
-                return;
-            end
+            if isempty(app.trendSnr), return; end
             currentIdx = round(currentIdx);
-            if currentIdx < 1 || currentIdx > numel(app.trendWindowIdx)
+            if currentIdx < 1 || currentIdx > numel(app.trendSnr) || ...
+                    isequal(app.lastTrendLogWindowIdx, currentIdx)
                 return;
             end
-            if isequal(app.lastTrendLogWindowIdx, currentIdx)
-                return;
-            end
-
-            targetRange = app.trendRange(currentIdx);
-            targetVelocity = app.trendVelocity(currentIdx);
-            targetSnr = app.trendSnr(currentIdx);
-            if ~isfinite(targetRange) || ~isfinite(targetVelocity) || ~isfinite(targetSnr)
-                app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('[最大SNR] 窗口 %d: 无有效目标点。', currentIdx)}];
-            else
-                app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('[最大SNR] 窗口 %d: 距离 %.3f m，径向速度 %.3f m/s，SNR %.2f dB', currentIdx, targetRange, targetVelocity, targetSnr)}];
-            end
+            physicalFrame = floor((currentIdx - 1) / app.windows_per_frame) + 1;
+            [~, frameSnr] = radarui.summarizeFrameSnr( ...
+                app.trendSnr, app.windows_per_frame);
+            app.LogTextArea.Value = [app.LogTextArea.Value; ...
+                {sprintf('[最大SNR] 物理帧 %d：帧内最大 %.2f dB；当前滑窗 %d：%.2f dB。', ...
+                physicalFrame, frameSnr(physicalFrame), currentIdx, app.trendSnr(currentIdx))}];
             app.lastTrendLogWindowIdx = currentIdx;
             scroll(app.LogTextArea, 'bottom');
-
-        end
-
-        function [signedTargetSpeed, ok] = calculateSingleTargetUnwrappedSpeed(app, radarRange, wrappedRadialVelocity)
-            signedTargetSpeed = NaN;
-            ok = false;
-
-            v_approx = app.ApproxSpeedEdit.Value;
-            perpDistance = abs(app.PerpDistanceEdit.Value);
-            v_max = (app.cfg_WinSize / 2) * app.delta_v;
-
-            if isempty(v_max) || ~isfinite(v_max) || v_max <= 0
-                return;
-            end
-            if ~isfinite(radarRange) || ~isfinite(wrappedRadialVelocity) || radarRange <= 0 || perpDistance >= radarRange
-                return;
-            end
-
-            radialProjection = sqrt(radarRange^2 - perpDistance^2) / radarRange;
-            if radialProjection <= eps
-                return;
-            end
-
-            approxRadialSpeedAbs = abs(v_approx) * radialProjection;
-            maxWrap = ceil((approxRadialSpeedAbs + 4 * v_max) / (2 * v_max)) + 3;
-            wrapCandidates = -maxWrap:maxWrap;
-            radialCandidates = wrappedRadialVelocity + wrapCandidates * (2 * v_max);
-            signedTargetSpeedCandidates = radialCandidates / radialProjection;
-            [~, bestIdx] = min(abs(signedTargetSpeedCandidates - v_approx));
-            targetSpeed = abs(radialCandidates(bestIdx)) / radialProjection;
-
-            if v_approx == 0
-                signedTargetSpeed = 0;
-            else
-                signedTargetSpeed = sign(v_approx) * targetSpeed;
-            end
-            ok = true;
         end
 
         function refreshTrendPlot(app, currentIdx)
-            cla(app.UIAxes_PC);
-            cla(app.UIAxes_TrendVelocity);
-            if isempty(app.trendWindowIdx)
-                return;
-            end
-            if nargin < 2 || isempty(currentIdx)
-                currentIdx = NaN;
-            end
-
-            validRange = isfinite(app.trendRange);
-            validVelocity = isfinite(app.trendVelocity);
-
-            plot(app.UIAxes_PC, app.trendWindowIdx(validRange), app.trendRange(validRange), ...
-                '-o', 'LineWidth', 1.2, 'MarkerSize', 3, 'Color', [0 0.4470 0.7410]);
-            title(app.UIAxes_PC, '最大 SNR 点距离趋势');
-            xlabel(app.UIAxes_PC, 'Window Index');
-            ylabel(app.UIAxes_PC, 'Range (m)');
-            grid(app.UIAxes_PC, 'on');
-
-            if numel(app.trendWindowIdx) > 1
-                app.UIAxes_PC.XLim = [1, numel(app.trendWindowIdx)];
-                app.UIAxes_TrendVelocity.XLim = [1, numel(app.trendWindowIdx)];
-            else
-                app.UIAxes_PC.XLim = [0.5, 1.5];
-                app.UIAxes_TrendVelocity.XLim = [0.5, 1.5];
-            end
-            app.UIAxes_PC.XTickMode = 'auto';
-            app.UIAxes_PC.YTickMode = 'auto';
-            app.UIAxes_PC.XTickLabelMode = 'auto';
-            app.UIAxes_PC.YTickLabelMode = 'auto';
-
-            plot(app.UIAxes_TrendVelocity, app.trendWindowIdx(validVelocity), app.trendVelocity(validVelocity), ...
-                '-s', 'LineWidth', 1.2, 'MarkerSize', 3, 'Color', [0.8500 0.3250 0.0980]);
-            title(app.UIAxes_TrendVelocity, '最大 SNR 点速度趋势');
-            xlabel(app.UIAxes_TrendVelocity, 'Window Index');
-            ylabel(app.UIAxes_TrendVelocity, 'Aliased Velocity (m/s)');
-            app.UIAxes_TrendVelocity.XTickMode = 'auto';
-            app.UIAxes_TrendVelocity.YTickMode = 'auto';
-            app.UIAxes_TrendVelocity.XTickLabelMode = 'auto';
-            app.UIAxes_TrendVelocity.YTickLabelMode = 'auto';
-            grid(app.UIAxes_TrendVelocity, 'on');
-
-            if isfinite(currentIdx)
-                xline(app.UIAxes_PC, currentIdx, 'k--', 'LineWidth', 1);
-                xline(app.UIAxes_TrendVelocity, currentIdx, 'k--', 'LineWidth', 1);
-            end
-        end
-
-        function resetFitPlot(app)
-            cla(app.UIAxes_FitRange);
-            cla(app.UIAxes_FitVelocity);
-
-            title(app.UIAxes_FitRange, '拟合距离趋势');
-            xlabel(app.UIAxes_FitRange, 'Frame Index');
-            ylabel(app.UIAxes_FitRange, 'Range (m)');
-            ylim(app.UIAxes_FitRange, [-2 25]);
-            grid(app.UIAxes_FitRange, 'on');
-
-            title(app.UIAxes_FitVelocity, '解模糊后速度趋势');
-            xlabel(app.UIAxes_FitVelocity, 'Frame Index');
-            ylabel(app.UIAxes_FitVelocity, 'Unwrapped Velocity (m/s)');
-            grid(app.UIAxes_FitVelocity, 'on');
-        end
-
-        function FitConfirmButtonPushed(app, event)
-            if isempty(app.trendWindowIdx)
-                uialert(app.UIFigure, '请先加载数据并完成最大 SNR 趋势统计。', '拟合失败');
-                return;
-            end
-
-            startFrame = round(app.FitStartEdit.Value);
-            endFrame = round(app.FitEndEdit.Value);
-            if startFrame > endFrame
-                uialert(app.UIFigure, '拟合起始帧不能大于终点帧。', '拟合失败');
-                return;
-            end
-            if startFrame < 1 || endFrame > app.numFrames
-                uialert(app.UIFigure, sprintf('拟合帧范围必须在 1~%d 之间。', app.numFrames), '拟合失败');
-                return;
-            end
-            expectedTotalWindows = app.numFrames * app.windows_per_frame;
-            if numel(app.trendWindowIdx) ~= expectedTotalWindows
-                uialert(app.UIFigure, sprintf(['当前最大 SNR 趋势缓存与滑窗参数不一致。\n' ...
-                    '当前配置每帧应有 %d 个滑窗，总计 %d 个滑窗。\n' ...
-                    '请重新点击【加载文件】，让窗口大小/滑动步进重新生效。'], ...
-                    app.windows_per_frame, expectedTotalWindows), '拟合失败');
-                return;
-            end
-
-            trendFrameIdx = floor((app.trendWindowIdx - 1) / app.windows_per_frame) + 1;
-            trendSubIdx = mod(app.trendWindowIdx - 1, app.windows_per_frame);
-            if app.windows_per_frame > 1
-                chirpCenterOffset = trendSubIdx * app.cfg_WinStep + (app.cfg_WinSize - 1) / 2;
-                frameCenterOffset = (app.cfg_Chirps - 1) / 2;
-                trendFrameAxis = trendFrameIdx + (chirpCenterOffset - frameCenterOffset) / app.cfg_Chirps;
-            else
-                trendFrameAxis = trendFrameIdx;
-            end
-            selected = trendFrameIdx >= startFrame & trendFrameIdx <= endFrame & ...
-                isfinite(app.trendRange) & isfinite(app.trendVelocity) & isfinite(app.trendSnr);
-
-            fitX = trendFrameAxis(selected);
-            fitRange = app.trendRange(selected);
-            fitVelocity = app.trendVelocity(selected);
-            if numel(fitX) < 2
-                uialert(app.UIFigure, '选定帧范围内有效滑窗点不足，至少需要 2 个有效点。', '拟合失败');
-                return;
-            end
-            if numel(unique(fitX)) < 2
-                uialert(app.UIFigure, '选定帧范围内横坐标变化不足，无法拟合。请扩大帧范围或减小滑窗步进。', '拟合失败');
-                return;
-            end
-
-            v_approx = app.ApproxSpeedEdit.Value;
-            perpDistance = abs(app.PerpDistanceEdit.Value);
-            v_max = (app.cfg_WinSize / 2) * app.delta_v;
-            if isempty(v_max) || ~isfinite(v_max) || v_max <= 0
-                uialert(app.UIFigure, '请先加载数据，使速度轴参数生效。', '拟合失败');
-                return;
-            end
-
-            rangeFitDegree = min(2, numel(unique(fitX)) - 1);
-            rangeCoeff = polyfit(fitX, fitRange, rangeFitDegree);
-            drawX = linspace(min(fitX), max(fitX), 200);
-            drawRange = polyval(rangeCoeff, drawX);
-            sampleFitRange = polyval(rangeCoeff, fitX);
-
-            [sampleUnwrappedVelocity, validSampleUnwrap] = unwrapVelocityWithRange(fitVelocity, sampleFitRange);
-            if nnz(validSampleUnwrap) < 2 || numel(unique(fitX(validSampleUnwrap))) < 2
-                uialert(app.UIFigure, '选定范围内可解模糊速度点不足，至少需要 2 个点。', '拟合失败');
-                return;
-            end
-
-            velocityFitDegree = min(2, numel(unique(fitX(validSampleUnwrap))) - 1);
-            velocityCoeff = polyfit(fitX(validSampleUnwrap), sampleUnwrappedVelocity(validSampleUnwrap), velocityFitDegree);
-            drawUnwrappedVelocity = polyval(velocityCoeff, drawX);
-            validDrawVelocity = isfinite(drawUnwrappedVelocity);
-
-            rangeY = [fitRange(:); drawRange(:)];
-            rangeY = rangeY(isfinite(rangeY));
-            if isempty(rangeY)
-                uialert(app.UIFigure, '选定范围内没有有效距离点。', '拟合失败');
-                return;
-            end
-            rangePad = max(0.5, 0.08 * range(rangeY));
-            if range(rangeY) < eps
-                rangePad = 0.5;
-            end
-            velocityY = [sampleUnwrappedVelocity(validSampleUnwrap).'; drawUnwrappedVelocity(:)];
-            velocityY = velocityY(isfinite(velocityY));
-            velocityPad = max(5, 0.08 * range(velocityY));
-            if isempty(velocityY) || range(velocityY) < eps
-                velocityPad = 5;
-            end
-
-            cla(app.UIAxes_FitRange);
-            plot(app.UIAxes_FitRange, fitX, fitRange, 'o', ...
-                'MarkerSize', 4, 'LineWidth', 1, 'Color', [0 0.4470 0.7410]);
-            hold(app.UIAxes_FitRange, 'on');
-            plot(app.UIAxes_FitRange, drawX, drawRange, '-', ...
-                'LineWidth', 1.6, 'Color', [0 0.4470 0.7410]);
-            hold(app.UIAxes_FitRange, 'off');
-            title(app.UIAxes_FitRange, '拟合距离趋势');
-            xlabel(app.UIAxes_FitRange, 'Frame Index');
-            ylabel(app.UIAxes_FitRange, 'Range (m)');
-            if min(fitX) == max(fitX)
-                xlim(app.UIAxes_FitRange, [min(fitX)-0.5 max(fitX)+0.5]);
-            else
-                xlim(app.UIAxes_FitRange, [min(fitX) max(fitX)]);
-            end
-            ylim(app.UIAxes_FitRange, [min(rangeY)-rangePad max(rangeY)+rangePad]);
-            grid(app.UIAxes_FitRange, 'on');
-
-            cla(app.UIAxes_FitVelocity);
-            % sampleUnwrappedVelocity = -(sampleUnwrappedVelocity + 60);
-            % drawUnwrappedVelocity = -(drawUnwrappedVelocity + 60);
-            plot(app.UIAxes_FitVelocity, fitX(validSampleUnwrap), sampleUnwrappedVelocity(validSampleUnwrap), 's', ...
-                'MarkerSize', 4, 'LineWidth', 1, 'Color', [0.8500 0.3250 0.0980]);
-            hold(app.UIAxes_FitVelocity, 'on');
-            plot(app.UIAxes_FitVelocity, drawX(validDrawVelocity), drawUnwrappedVelocity(validDrawVelocity), '-', ...
-                'LineWidth', 1.6, 'Color', [0.8500 0.3250 0.0980]);
-            hold(app.UIAxes_FitVelocity, 'off');
-            title(app.UIAxes_FitVelocity, '解模糊后速度趋势');
-            xlabel(app.UIAxes_FitVelocity, 'Frame Index');
-            ylabel(app.UIAxes_FitVelocity, 'Unwrapped Velocity (m/s)');
-            if min(fitX) == max(fitX)
-                xlim(app.UIAxes_FitVelocity, [min(fitX)-0.5 max(fitX)+0.5]);
-            else
-                xlim(app.UIAxes_FitVelocity, [min(fitX) max(fitX)]);
-            end
-            ylim(app.UIAxes_FitVelocity, [min(velocityY)-velocityPad max(velocityY)+velocityPad]);
-            grid(app.UIAxes_FitVelocity, 'on');
-
-            app.LogTextArea.Value = [app.LogTextArea.Value; ...
-                {sprintf('[拟合] 已根据帧 %d~%d 内 %d 个有效滑窗点拟合距离，并根据 %d 个解模糊速度点拟合速度。', startFrame, endFrame, numel(fitX), nnz(validSampleUnwrap))}];
-            app.LogTextArea.Value = [app.LogTextArea.Value; ...
-                {sprintf('[拟合解模糊] 速度符号按大致速度 %.2f m/s 约束，拟合范围仅限当前选择帧。', v_approx)}];
-            scroll(app.LogTextArea, 'bottom');
-
-            function [unwrappedVelocity, validUnwrap] = unwrapVelocityWithRange(wrappedVelocity, fittedRange)
-                unwrappedVelocity = NaN(size(wrappedVelocity));
-                validUnwrap = isfinite(wrappedVelocity) & isfinite(fittedRange) & abs(fittedRange) > eps;
-                for idx = find(validUnwrap)
-                    radarRange = abs(fittedRange(idx));
-                    if perpDistance >= radarRange
-                        validUnwrap(idx) = false;
-                        continue;
-                    end
-
-                    radialProjection = sqrt(radarRange^2 - perpDistance^2) / radarRange;
-                    if radialProjection <= eps
-                        validUnwrap(idx) = false;
-                        continue;
-                    end
-
-                    approxSpeedSign = sign(v_approx);
-                    if approxSpeedSign == 0
-                        approxSpeedSign = 1;
-                    end
-                    effectiveApproxSpeed = approxSpeedSign * abs(v_approx);
-                    approxRadialSpeedAbs = abs(effectiveApproxSpeed) * radialProjection;
-                    maxWrap = ceil((approxRadialSpeedAbs + 4 * v_max) / (2 * v_max)) + 3;
-                    wrapCandidates = -maxWrap:maxWrap;
-                    radialCandidates = wrappedVelocity(idx) + wrapCandidates * (2 * v_max);
-                    signedTargetSpeedCandidates = radialCandidates / radialProjection;
-                    [~, bestIdx] = min(abs(signedTargetSpeedCandidates - effectiveApproxSpeed));
-                    targetSpeed = abs(signedTargetSpeedCandidates(bestIdx));
-                    unwrappedVelocity(idx) = approxSpeedSign * targetSpeed;
-                end
+            cla(app.UIAxes_SNR);
+            title(app.UIAxes_SNR, '每帧最大 SNR（各滑窗取最大值）');
+            xlabel(app.UIAxes_SNR, 'Physical Frame Index');
+            ylabel(app.UIAxes_SNR, 'Maximum SNR (dB)');
+            grid(app.UIAxes_SNR, 'on');
+            if isempty(app.trendSnr), return; end
+            [frameIndex, frameSnr] = radarui.summarizeFrameSnr( ...
+                app.trendSnr, app.windows_per_frame);
+            plot(app.UIAxes_SNR, frameIndex, frameSnr, '-o', ...
+                'LineWidth', 1.2, 'MarkerSize', 3, ...
+                'DisplayName', '每帧最大 SNR');
+            title(app.UIAxes_SNR, '每帧最大 SNR（各滑窗取最大值）');
+            xlabel(app.UIAxes_SNR, 'Physical Frame Index');
+            ylabel(app.UIAxes_SNR, 'Maximum SNR (dB)');
+            grid(app.UIAxes_SNR, 'on');
+            app.UIAxes_SNR.XLim = [0.5, numel(frameIndex) + 0.5];
+            app.UIAxes_SNR.XTickMode = 'auto';
+            app.UIAxes_SNR.YTickMode = 'auto';
+            app.UIAxes_SNR.XTickLabelMode = 'auto';
+            app.UIAxes_SNR.YTickLabelMode = 'auto';
+            if nargin >= 2 && isfinite(currentIdx)
+                physicalFrame = floor((currentIdx - 1) / app.windows_per_frame) + 1;
+                xline(app.UIAxes_SNR, physicalFrame, '--', '当前帧', ...
+                    'HandleVisibility', 'off');
             end
         end
 
@@ -1243,10 +973,9 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
                 targetVelocity = app.vel_axis(colIdx);
                 targetPower = rd_shifted(rowIdx, colIdx);
                 targetNoiseFloor = noiseFloor(rowIdx, colIdx);
-                [unwrappedSpeed, ~] = calculateSingleTargetUnwrappedSpeed(app, targetRange, targetVelocity);
 
                 app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('[物理RD自动最大SNR] 窗口 %d', currentIdx)}];
-                app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('坐标: 距离 %.2f m, 有模糊速度 %.2f m/s, 解模糊速度 %.2f m/s', targetRange, targetVelocity, unwrappedSpeed)}];
+                app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('坐标: 距离 %.2f m, 有模糊径向速度 %.2f m/s', targetRange, targetVelocity)}];
                 app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('功率: %.2f dB', targetPower)}];
                 app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('噪底: %.2f dB', targetNoiseFloor)}];
                 app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('信噪比 (SNR): %.2f dB', maxSnr)}];
@@ -1291,8 +1020,7 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             % 6. 打印到日志区
             app.LogTextArea.Value = [app.LogTextArea.Value; {'------------------------------------'}];
             app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('选中目标信息：')}];
-            [unwrappedSpeed, ~] = calculateSingleTargetUnwrappedSpeed(app, r_click, v_click);
-            app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('坐标: 距离 %.2f m, 速度 %.2f m/s, 解模糊速度 %.2f m/s', r_click, v_click, unwrappedSpeed)}];
+            app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('坐标: 距离 %.2f m, 有模糊径向速度 %.2f m/s', r_click, v_click)}];
             app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('功率: %.2f dB', target_pwr)}];
             app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('噪底: %.2f dB', noise_floor)}];
             app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('信噪比 (SNR): %.2f dB', snr)}];
@@ -1520,10 +1248,14 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
                 appConfig.processingDopplerFftSize = ...
                     max(128, appConfig.processingWinSize);
 
-                appConfig.approxSpeed = abs(app.ApproxSpeedEdit.Value);
-                if ~isfinite(appConfig.approxSpeed) ...
-                        || appConfig.approxSpeed <= 0
-                    appConfig.approxSpeed = 400;
+                if ~isempty(app.numFrames) && app.numFrames >= 1
+                    firstFrame = round(app.OverviewStartEdit.Value);
+                    lastFrame = round(app.OverviewEndEdit.Value);
+                    if firstFrame < 1 || lastFrame < firstFrame || lastFrame > app.numFrames
+                        error('radarui:InvalidOverviewSelection', ...
+                            '请选择有效的目标物理帧范围，范围必须位于 1~%d。', app.numFrames);
+                    end
+                    appConfig.overviewTargetFrames = [firstFrame lastFrame];
                 end
 
                 processingCfg = ...
@@ -1638,10 +1370,10 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.FrameSlider.Limits = [1 total_windows];
             app.FrameSlider.Value = 1;
             app.lastPhysicalMaxSnrLogWindowIdx = NaN;
-            app.FitStartEdit.Limits = [1 app.numFrames];
-            app.FitEndEdit.Limits = [1 app.numFrames];
-            app.FitStartEdit.Value = 1;
-            app.FitEndEdit.Value = app.numFrames;
+            app.OverviewStartEdit.Limits = [1 app.numFrames];
+            app.OverviewEndEdit.Limits = [1 app.numFrames];
+            app.OverviewStartEdit.Value = 1;
+            app.OverviewEndEdit.Value = app.numFrames;
             
             % === 5. 初始化图像 ===
             
@@ -1745,26 +1477,13 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.UIAxes_FFT1DLine.YTickLabelMode = 'auto';
             grid(app.UIAxes_FFT1DLine, 'on');
              
-            % (5) 最大 SNR 点趋势图 初始化
-            cla(app.UIAxes_PC);
-            cla(app.UIAxes_TrendVelocity);
-            title(app.UIAxes_PC, '最大 SNR 点距离趋势');
-            app.UIAxes_PC.XLabel.String = 'Window Index';
-            app.UIAxes_PC.YLabel.String = 'Range (m)';
-            app.UIAxes_PC.XTickMode = 'auto';
-            app.UIAxes_PC.YTickMode = 'auto';
-            app.UIAxes_PC.XTickLabelMode = 'auto';
-            app.UIAxes_PC.YTickLabelMode = 'auto';
-            grid(app.UIAxes_PC, 'on'); colormap(app.UIAxes_PC, 'jet');
-            title(app.UIAxes_TrendVelocity, '最大 SNR 点速度趋势');
-            app.UIAxes_TrendVelocity.XLabel.String = 'Window Index';
-            app.UIAxes_TrendVelocity.YLabel.String = 'Aliased Velocity (m/s)';
-            app.UIAxes_TrendVelocity.XTickMode = 'auto';
-            app.UIAxes_TrendVelocity.YTickMode = 'auto';
-            app.UIAxes_TrendVelocity.XTickLabelMode = 'auto';
-            app.UIAxes_TrendVelocity.YTickLabelMode = 'auto';
-            grid(app.UIAxes_TrendVelocity, 'on');
-            
+            % (5) 整体选帧只绘制最大 SNR，不做速度解模糊或轨迹拟合。
+            cla(app.UIAxes_SNR);
+            title(app.UIAxes_SNR, '每帧最大 SNR（各滑窗取最大值）');
+            xlabel(app.UIAxes_SNR, 'Physical Frame Index');
+            ylabel(app.UIAxes_SNR, 'Maximum SNR (dB)');
+            grid(app.UIAxes_SNR, 'on');
+
             app.LogTextArea.Value = [app.LogTextArea.Value; {'正在全局计算每个滑窗的最大 SNR 点...'}];
             scroll(app.LogTextArea, 'bottom');
             drawnow;
@@ -1861,7 +1580,7 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             mode = app.ViewDropDown.Value;
             
             % 1. 先把所有图和它们的子对象全隐藏，避免其它坐标轴残留
-            allAxes = [app.UIAxes_RD, app.UIAxes_RD_Real, app.UIAxes_RawADCHeatmap, app.UIAxes_RawADCWaveform, app.UIAxes_FFT1DHeatmap, app.UIAxes_FFT1DLine, app.UIAxes_PC, app.UIAxes_TrendVelocity, app.UIAxes_FitRange, app.UIAxes_FitVelocity];
+            allAxes = [app.UIAxes_RD, app.UIAxes_RD_Real, app.UIAxes_RawADCHeatmap, app.UIAxes_RawADCWaveform, app.UIAxes_FFT1DHeatmap, app.UIAxes_FFT1DLine, app.UIAxes_SNR];
             for k = 1:numel(allAxes)
                 allAxes(k).Visible = 'off';
                 allAxes(k).Toolbar.Visible = 'off';
@@ -1882,11 +1601,6 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             if ~isempty(app.hLegend_RawADC) && isvalid(app.hLegend_RawADC)
                 app.hLegend_RawADC.Visible = 'off';
             end
-            app.FitStartLabel.Visible = 'off';
-            app.FitStartEdit.Visible = 'off';
-            app.FitEndLabel.Visible = 'off';
-            app.FitEndEdit.Visible = 'off';
-            app.FitConfirmButton.Visible = 'off';
             app.RawRxLabel.Visible = 'off';
             app.RawRxDropDown.Visible = 'off';
             app.RawChirpLabel.Visible = 'off';
@@ -1939,23 +1653,13 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
                 if ~isempty(app.fp)
                     updateFFT1DView(app, round(app.FrameSlider.Value));
                 end
-            elseif strcmp(mode, '拟合趋势图')
-                targetAxes = [app.UIAxes_FitRange, app.UIAxes_FitVelocity];
-                app.FitStartLabel.Visible = 'on';
-                app.FitStartEdit.Visible = 'on';
-                app.FitEndLabel.Visible = 'on';
-                app.FitEndEdit.Visible = 'on';
-                app.FitConfirmButton.Visible = 'on';
-                if nargin > 1 && ~isempty(event)
-                    resetFitPlot(app);
-                end
             else
                 if ~isempty(app.trendWindowIdx)
                     currentIdx = round(app.FrameSlider.Value);
                     refreshTrendPlot(app, currentIdx);
                     logCurrentTrendPoint(app, currentIdx);
                 end
-                targetAxes = [app.UIAxes_PC, app.UIAxes_TrendVelocity];
+                targetAxes = app.UIAxes_SNR;
             end
 
             for k = 1:numel(targetAxes)
@@ -2005,65 +1709,6 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             end
         end
 
-        % Button pushed function: UnwrapBtn
-        function UnwrapBtnButtonPushed(app, event)
-            % 1. 获取输入值
-            v_approx = app.ApproxSpeedEdit.Value;
-            v_wrapped = app.ApproxSpeedEdit_2.Value;
-            perpDistance = abs(app.PerpDistanceEdit.Value);
-            radarRange = app.TargetRangeEdit.Value;
-            
-            % 2. 动态计算当前配置下的最大不模糊速度 Vmax
-            v_max = (app.cfg_WinSize / 2) * app.delta_v;
-
-            if isempty(v_max) || ~isfinite(v_max) || v_max <= 0
-                uialert(app.UIFigure, '请先加载数据，使速度轴参数生效。', '解模糊失败');
-                return;
-            end
-            if radarRange <= 0 || perpDistance >= radarRange
-                uialert(app.UIFigure, '当前目标距离雷达的距离必须大于雷达到轨迹的垂直距离。', '解模糊失败');
-                return;
-            end
-            
-            % 3. 几何投影：径向速度 = 目标轨迹速度 * cos(theta)
-            alongTrackDistance = sqrt(radarRange^2 - perpDistance^2);
-            radialProjection = alongTrackDistance / radarRange;
-            approxRadialSpeedAbs = abs(v_approx) * radialProjection;
-
-            % 4. 在所有可能的解模糊径向速度中，选择还原目标速度最接近大致速度的解。
-            maxWrap = ceil((approxRadialSpeedAbs + 4 * v_max) / (2 * v_max)) + 3;
-            wrapCandidates = -maxWrap:maxWrap;
-            radialCandidates = v_wrapped + wrapCandidates * (2 * v_max);
-            signedTargetSpeedCandidates = radialCandidates / radialProjection;
-            [~, bestIdx] = min(abs(signedTargetSpeedCandidates - v_approx));
-            n_wrap = wrapCandidates(bestIdx);
-            radial_unwrapped = radialCandidates(bestIdx);
-            target_speed = abs(radial_unwrapped) / radialProjection;
-            if v_approx == 0
-                signed_target_speed = 0;
-            else
-                signed_target_speed = sign(v_approx) * target_speed;
-            end
-            
-            % 5. 打印结果到运行日志
-            app.LogTextArea.Value = [app.LogTextArea.Value; {'------------------------------------'}];
-            app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('【单目标几何解模糊计算】')}];
-            app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('目标大致速度: %.2f m/s', v_approx)}];
-            app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('有模糊径向速度: %.2f m/s', v_wrapped)}];
-            app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('雷达到轨迹垂距: %.3f m', perpDistance)}];
-            app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('当前目标距雷达: %.3f m', radarRange)}];
-            app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('径向投影系数 cos(theta): %.6f', radialProjection)}];
-            app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('由大致速度估计的径向速度幅值: %.2f m/s', approxRadialSpeedAbs)}];
-            app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('当前系统 Vmax: ±%.2f m/s', v_max)}];
-            app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('解模糊径向速度: %.2f m/s (折叠 %d 次)', radial_unwrapped, n_wrap)}];
-            app.LogTextArea.Value = [app.LogTextArea.Value; {sprintf('>>> 目标速度大小: %.2f m/s，带符号速度: %.2f m/s <<<', target_speed, signed_target_speed)}];
-            app.LogTextArea.Value = [app.LogTextArea.Value; {'------------------------------------'}];
-            
-            % 6. 自动滚动到底部
-            scroll(app.LogTextArea, 'bottom');
-        end
-
-        % Button pushed function: SettingsBtn
         function SettingsBtnButtonPushed(app, event)
             % 1. 创建模态弹窗 (WindowStyle='modal' 意味着不关掉它就不能点主界面)
             setFig = uifigure('Name', '参数配置', 'Position', [500, 70, 420, 820], 'WindowStyle', 'modal');
@@ -2205,7 +1850,6 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
                 app.cfg_MaxSnrVelocityMax = newMaxSnrVelocityMax;
 
                 clearTrendCache(app);
-                resetFitPlot(app);
                 prepareCaptureJson(app, false);
                 delete(fig);
                 uialert(app.UIFigure, '参数已保存！请点击【加载文件】重新切分数据并生效。', '设置成功', 'Icon', 'success');
@@ -2295,7 +1939,7 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
             app.UIFigure.Position = [100 100 931 634];
-            app.UIFigure.Name = 'MATLAB App';
+            app.UIFigure.Name = '界面1 · 整体查看与采集';
             app.UIFigure.CloseRequestFcn = createCallbackFcn(app, @UIFigureCloseRequest, true);
 
             % Create UIAxes_RD
@@ -2306,82 +1950,15 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             zlabel(app.UIAxes_RD, 'Z')
             app.UIAxes_RD.Position = [395 96 509 502];
 
-            % Create UIAxes_PC
-            app.UIAxes_PC = uiaxes(app.UIFigure);
-            title(app.UIAxes_PC, '最大 SNR 点距离趋势')
-            xlabel(app.UIAxes_PC, 'X')
-            ylabel(app.UIAxes_PC, 'Y')
-            zlabel(app.UIAxes_PC, 'Z')
-            app.UIAxes_PC.Toolbar.Visible = 'off';
-            app.UIAxes_PC.Visible = 'off';
-            app.UIAxes_PC.Position = [395 352 509 246];
-
-            % Create UIAxes_TrendVelocity
-            app.UIAxes_TrendVelocity = uiaxes(app.UIFigure);
-            title(app.UIAxes_TrendVelocity, '最大 SNR 点速度趋势')
-            xlabel(app.UIAxes_TrendVelocity, 'X')
-            ylabel(app.UIAxes_TrendVelocity, 'Y')
-            zlabel(app.UIAxes_TrendVelocity, 'Z')
-            app.UIAxes_TrendVelocity.Toolbar.Visible = 'off';
-            app.UIAxes_TrendVelocity.Visible = 'off';
-            app.UIAxes_TrendVelocity.Position = [395 96 509 246];
-
-            % Create UIAxes_FitRange
-            app.UIAxes_FitRange = uiaxes(app.UIFigure);
-            title(app.UIAxes_FitRange, '拟合距离趋势')
-            xlabel(app.UIAxes_FitRange, 'Frame Index')
-            ylabel(app.UIAxes_FitRange, 'Range (m)')
-            zlabel(app.UIAxes_FitRange, 'Z')
-            app.UIAxes_FitRange.Toolbar.Visible = 'off';
-            app.UIAxes_FitRange.Visible = 'off';
-            app.UIAxes_FitRange.Position = [395 352 385 246];
-
-            % Create UIAxes_FitVelocity
-            app.UIAxes_FitVelocity = uiaxes(app.UIFigure);
-            title(app.UIAxes_FitVelocity, '拟合速度趋势')
-            xlabel(app.UIAxes_FitVelocity, 'Frame Index')
-            ylabel(app.UIAxes_FitVelocity, 'Velocity (m/s)')
-            zlabel(app.UIAxes_FitVelocity, 'Z')
-            app.UIAxes_FitVelocity.Toolbar.Visible = 'off';
-            app.UIAxes_FitVelocity.Visible = 'off';
-            app.UIAxes_FitVelocity.Position = [395 96 385 246];
-
-            % Create FitStartLabel
-            app.FitStartLabel = uilabel(app.UIFigure);
-            app.FitStartLabel.HorizontalAlignment = 'right';
-            app.FitStartLabel.Position = [800 448 80 22];
-            app.FitStartLabel.Text = '起始帧';
-            app.FitStartLabel.Visible = 'off';
-
-            % Create FitStartEdit
-            app.FitStartEdit = uieditfield(app.UIFigure, 'numeric');
-            app.FitStartEdit.Limits = [1 Inf];
-            app.FitStartEdit.RoundFractionalValues = 'on';
-            app.FitStartEdit.Position = [800 420 80 22];
-            app.FitStartEdit.Value = 1;
-            app.FitStartEdit.Visible = 'off';
-
-            % Create FitEndLabel
-            app.FitEndLabel = uilabel(app.UIFigure);
-            app.FitEndLabel.HorizontalAlignment = 'right';
-            app.FitEndLabel.Position = [800 386 80 22];
-            app.FitEndLabel.Text = '终点帧';
-            app.FitEndLabel.Visible = 'off';
-
-            % Create FitEndEdit
-            app.FitEndEdit = uieditfield(app.UIFigure, 'numeric');
-            app.FitEndEdit.Limits = [1 Inf];
-            app.FitEndEdit.RoundFractionalValues = 'on';
-            app.FitEndEdit.Position = [800 358 80 22];
-            app.FitEndEdit.Value = 1;
-            app.FitEndEdit.Visible = 'off';
-
-            % Create FitConfirmButton
-            app.FitConfirmButton = uibutton(app.UIFigure, 'push');
-            app.FitConfirmButton.ButtonPushedFcn = createCallbackFcn(app, @FitConfirmButtonPushed, true);
-            app.FitConfirmButton.Position = [800 320 80 24];
-            app.FitConfirmButton.Text = '确定';
-            app.FitConfirmButton.Visible = 'off';
+            % Create UIAxes_SNR
+            app.UIAxes_SNR = uiaxes(app.UIFigure);
+            title(app.UIAxes_SNR, '每帧最大 SNR')
+            xlabel(app.UIAxes_SNR, 'X')
+            ylabel(app.UIAxes_SNR, 'Y')
+            zlabel(app.UIAxes_SNR, 'Z')
+            app.UIAxes_SNR.Toolbar.Visible = 'off';
+            app.UIAxes_SNR.Visible = 'off';
+            app.UIAxes_SNR.Position = [395 96 509 502];
 
             % Create UIAxes_RD_Real
             app.UIAxes_RD_Real = uiaxes(app.UIFigure);
@@ -2529,26 +2106,10 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
 
             % Create ViewDropDown
             app.ViewDropDown = uidropdown(app.UIFigure);
-            app.ViewDropDown.Items = {'频点 RD 图', '物理坐标 RD 图', '原始 ADC 数据图', '一维 FFT 图', '最大 SNR 趋势图', '拟合趋势图'};
+            app.ViewDropDown.Items = {'频点 RD 图', '物理坐标 RD 图', '原始 ADC 数据图', '一维 FFT 图', '最大 SNR 趋势图'};
             app.ViewDropDown.ValueChangedFcn = createCallbackFcn(app, @ViewDropDownValueChanged, true);
             app.ViewDropDown.Position = [479 20 110 22];
             app.ViewDropDown.Value = '频点 RD 图';
-
-            % Create Label
-            app.Label = uilabel(app.UIFigure);
-            app.Label.HorizontalAlignment = 'right';
-            app.Label.Position = [24 466 53 22];
-            app.Label.Text = '大致速度';
-
-            % Create ApproxSpeedEdit
-            app.ApproxSpeedEdit = uieditfield(app.UIFigure, 'numeric');
-            app.ApproxSpeedEdit.Position = [92 466 80 22];
-
-            % Create UnwrapBtn
-            app.UnwrapBtn = uibutton(app.UIFigure, 'push');
-            app.UnwrapBtn.ButtonPushedFcn = createCallbackFcn(app, @UnwrapBtnButtonPushed, true);
-            app.UnwrapBtn.Position = [241 376 74 23];
-            app.UnwrapBtn.Text = '解模糊';
 
             % Create Label_2
             app.Label_2 = uilabel(app.UIFigure);
@@ -2613,8 +2174,8 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.ProcessButton = uibutton(app.UIFigure, 'push');
             app.ProcessButton.ButtonPushedFcn = ...
                 createCallbackFcn(app, @ProcessButtonPushed, true);
-            app.ProcessButton.Position = [319 336 58 23];
-            app.ProcessButton.Text = '数据处理';
+            app.ProcessButton.Position = [241 376 136 23];
+            app.ProcessButton.Text = '界面2：精细处理';
 
             % Create LogTextArea
             app.LogTextArea = uitextarea(app.UIFigure);
@@ -2629,40 +2190,20 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.FrameSlider.FontColor = [1 1 1];
             app.FrameSlider.Position = [632 30 150 3];
 
-            % Create Label_5
-            app.Label_5 = uilabel(app.UIFigure);
-            app.Label_5.HorizontalAlignment = 'right';
-            app.Label_5.Position = [176 466 79 22];
-            app.Label_5.Text = '有模糊速度';
-
-            app.Label_5.Text = '模糊径向速度';
-
-            % Create ApproxSpeedEdit_2
-            app.ApproxSpeedEdit_2 = uieditfield(app.UIFigure, 'numeric');
-            app.ApproxSpeedEdit_2.Position = [270 466 80 22];
-
-            % Create Label_6
-            app.Label_6 = uilabel(app.UIFigure);
-            app.Label_6.HorizontalAlignment = 'right';
-            app.Label_6.Position = [24 426 53 22];
-            app.Label_6.Text = '垂距(m)';
-
-            % Create PerpDistanceEdit
-            app.PerpDistanceEdit = uieditfield(app.UIFigure, 'numeric');
-            app.PerpDistanceEdit.Limits = [0 Inf];
-            app.PerpDistanceEdit.Position = [92 426 80 22];
-
-            % Create Label_7
-            app.Label_7 = uilabel(app.UIFigure);
-            app.Label_7.HorizontalAlignment = 'right';
-            app.Label_7.Position = [190 426 65 22];
-            app.Label_7.Text = '目标距(m)';
-
-            % Create TargetRangeEdit
-            app.TargetRangeEdit = uieditfield(app.UIFigure, 'numeric');
-            app.TargetRangeEdit.Limits = [eps Inf];
-            app.TargetRangeEdit.Position = [270 426 80 22];
-            app.TargetRangeEdit.Value = 1;
+            % Overview frame selection is passed to interface 2.
+            startLabel = uilabel(app.UIFigure, 'Text', '目标起始帧', ...
+                'Position', [24 466 65 22]); %#ok<NASGU>
+            app.OverviewStartEdit = uieditfield(app.UIFigure, 'numeric', ...
+                'Limits', [1 Inf], 'RoundFractionalValues', 'on', ...
+                'Value', 1, 'Position', [92 466 80 22]);
+            endLabel = uilabel(app.UIFigure, 'Text', '目标终止帧', ...
+                'Position', [190 466 75 22]); %#ok<NASGU>
+            app.OverviewEndEdit = uieditfield(app.UIFigure, 'numeric', ...
+                'Limits', [1 Inf], 'RoundFractionalValues', 'on', ...
+                'Value', 1, 'Position', [270 466 80 22]);
+            hintLabel = uilabel(app.UIFigure, ...
+                'Text', '先在最大 SNR 趋势图定位帧范围，再进入界面2进行目标检测和几何测速。', ...
+                'WordWrap', 'on', 'Position', [24 405 350 45]); %#ok<NASGU>
 
             % Create SettingsBtn
             app.SettingsBtn = uibutton(app.UIFigure, 'push');
