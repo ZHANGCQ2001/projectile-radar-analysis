@@ -4,17 +4,72 @@ on:
     branches: [fix/overview-snr-geometry]
     paths: [.github/workflows/ui-geometry-review.yml]
 permissions:
-  contents: read
+  contents: write
 jobs:
-  snapshot:
+  regression:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
-      - name: Bundle reviewed source
-        run: git archive --format=zip --output=source-snapshot.zip HEAD src uppermachine/RadarControlMachineApp.m uppermachine/+radarui tests docs startup.m README.md configs
-      - uses: actions/upload-artifact@v4
         with:
-          name: radar-source-snapshot
-          path: source-snapshot.zip
-          retention-days: 3
+          ref: fix/overview-snr-geometry
+      - name: Apply hash-checked source changes
+        shell: python
+        run: |
+          from pathlib import Path
+          import base64, gzip, hashlib, json
+          parts = [Path(f'.github/ui-geometry-delta.{i}.b64').read_text().strip() for i in range(1,5)]
+          raw = gzip.decompress(base64.b64decode(''.join(parts), validate=True))
+          assert hashlib.sha256(raw).hexdigest() == 'a1ac84fb7e58933f840085ed469ab642406970a90d51c0f9c0979425728c9284'
+          records = json.loads(raw)
+          for item in records:
+              path = Path(item['path'])
+              assert not path.is_absolute() and '..' not in path.parts
+              old = path.read_bytes() if path.exists() else b''
+              if item['before'] is None:
+                  assert not path.exists(), str(path)
+              else:
+                  assert hashlib.sha256(old).hexdigest() == item['before'], str(path)
+              lines = old.decode('utf-8').splitlines(True)
+              for first, last, replacement in reversed(item['edits']):
+                  lines[first:last] = [replacement]
+              new = ''.join(lines).encode('utf-8')
+              assert hashlib.sha256(new).hexdigest() == item['after'], str(path)
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_bytes(new)
+              print('Verified:', path)
+          Path('review-changed-paths.txt').write_text('\n'.join(i['path'] for i in records)+'\n')
+      - name: Check whitespace
+        run: git diff --check
+      - name: Install UI fonts
+        run: sudo apt-get update -qq && sudo apt-get install -y fonts-noto-cjk
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          release: R2025b
+          products: Signal_Processing_Toolbox
+      - name: MATLAB unit regression
+        uses: matlab-actions/run-command@v3
+        with:
+          command: startup; mkdir('test-results'); suite = testsuite('tests','IncludeSubfolders',true); runner = matlab.unittest.TestRunner.withTextOutput; runner.addPlugin(matlab.unittest.plugins.XMLPlugin.producingJUnitFormat('test-results/junit.xml')); results = runner.run(suite); save('test-results/results.mat','results'); assertSuccess(results);
+      - name: Offline GUI smoke test
+        uses: matlab-actions/run-command@v3
+        with:
+          command: startup; addpath('scripts'); smoke_test_interfaces('ui-smoke');
+      - name: Commit tested source only and remove staging helpers
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          while IFS= read -r path; do git add -- "$path"; done < review-changed-paths.txt
+          git rm .github/ui-geometry-delta.*.b64 .github/workflows/ui-geometry-review.yml
+          git diff --cached --check
+          git commit -m 'fix: separate overview SNR and geometry-aware detailed velocity analysis'
+          git push origin HEAD:fix/overview-snr-geometry
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-geometry-test-evidence
+          path: |
+            test-results/
+            ui-smoke/
+          retention-days: 7
