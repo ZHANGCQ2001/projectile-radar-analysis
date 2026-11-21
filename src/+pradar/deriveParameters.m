@@ -27,8 +27,11 @@ function derived = deriveParameters(cfg)
 
     derived.vMax = derived.lambda / (4 * cfg.chirpPeriod);
     derived.velocityPeriod = 2 * derived.vMax;
-    derived.measuredAliasedSpeed = ...
-        pradar.wrapVelocity(cfg.measuredSpeed, derived.vMax);
+    derived.measuredAliasedSpeed = NaN;
+    if cfg.perpendicularDistance == 0
+        derived.measuredAliasedSpeed = pradar.wrapVelocity( ...
+            cfg.radialDirection * cfg.measuredSpeed, derived.vMax);
+    end
 
     derived.windowsPerFrame = floor( ...
         (cfg.numChirpsPerFrame - cfg.winSize) / cfg.winStep) + 1;

@@ -10,18 +10,16 @@ function metrics = computeVelocityMetrics(trackTable, measuredSpeed)
         'relativeRmsePercent', NaN, ...
         'relativeMinimumAbsoluteErrorPercent', NaN);
 
-    if isempty(trackTable) ...
-            || ~ismember('UnwrappedVelocity_mps', ...
-                trackTable.Properties.VariableNames)
+    if isempty(trackTable), return; end
+    if ismember('TargetSpeed_mps', trackTable.Properties.VariableNames)
+        velocity = trackTable.TargetSpeed_mps;
+    elseif ismember('UnwrappedVelocity_mps', trackTable.Properties.VariableNames)
+        velocity = trackTable.UnwrappedVelocity_mps;
+    else
         return;
     end
-
-    validMask = isfinite(trackTable.UnwrappedVelocity_mps);
-    if ~any(validMask)
-        return;
-    end
-
-    velocity = trackTable.UnwrappedVelocity_mps(validMask);
+    velocity = velocity(isfinite(velocity));
+    if isempty(velocity), return; end
     errorValue = velocity - measuredSpeed;
 
     metrics.meanSpeed = mean(velocity);

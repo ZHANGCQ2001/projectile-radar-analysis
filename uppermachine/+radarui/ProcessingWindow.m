@@ -37,6 +37,9 @@ classdef ProcessingWindow < handle
         FitSpeedMinEdit
         FitSpeedMaxEdit
         ReferenceSpeedEdit
+        PerpendicularDistanceEdit
+        MinProjectionEdit
+        RadialDirectionDropDown
         TrackToleranceEdit
         TrackStartTimeEdit
         TrackEndTimeEdit
@@ -94,6 +97,17 @@ classdef ProcessingWindow < handle
 
         function setInput(obj, dataFile, baseCfg)
             if nargin >= 3 && ~isempty(baseCfg)
+                % Re-opening from the overview changes radar/file selection,
+                % not the geometry/reference already entered in interface 2.
+                baseCfg.perpendicularDistance = obj.PerpendicularDistanceEdit.Value;
+                baseCfg.minRadialProjection = obj.MinProjectionEdit.Value;
+                baseCfg.radialDirection = 1;
+                if strcmp(obj.RadialDirectionDropDown.Value, '接近（距离减小）')
+                    baseCfg.radialDirection = -1;
+                end
+                baseCfg.measuredSpeed = obj.ReferenceSpeedEdit.Value;
+                baseCfg.fitSpeedMin = obj.FitSpeedMinEdit.Value;
+                baseCfg.fitSpeedMax = obj.FitSpeedMaxEdit.Value;
                 obj.BaseConfig = baseCfg;
                 obj.applyConfigToControls(baseCfg);
             end
@@ -139,12 +153,12 @@ classdef ProcessingWindow < handle
     methods (Access = private)
         function createComponents(obj)
             obj.UIFigure = uifigure('Visible', 'off');
-            obj.UIFigure.Name = '弹丸雷达数据处理';
-            obj.UIFigure.Position = [120 80 1240 760];
+            obj.UIFigure.Name = '界面2 · 精细目标检测与几何测速';
+            obj.UIFigure.Position = [80 50 1360 860];
             obj.UIFigure.CloseRequestFcn = @(~, ~) delete(obj);
 
             obj.MainGrid = uigridlayout(obj.UIFigure, [1 2]);
-            obj.MainGrid.ColumnWidth = {360, '1x'};
+            obj.MainGrid.ColumnWidth = {450, '1x'};
             obj.MainGrid.RowHeight = {'1x'};
             obj.MainGrid.Padding = [8 8 8 8];
             obj.MainGrid.ColumnSpacing = 8;
@@ -154,13 +168,13 @@ classdef ProcessingWindow < handle
             obj.ControlPanel.Layout.Row = 1;
             obj.ControlPanel.Layout.Column = 1;
 
-            obj.ControlGrid = uigridlayout(obj.ControlPanel, [21 4]);
-            obj.ControlGrid.ColumnWidth = {92, 72, 92, '1x'};
-            obj.ControlGrid.RowHeight = { ...
-                26, 34, 24, 26, 26, 26, 26, 26, 26, 26, ...
-                26, 26, 26, 26, 26, 26, 26, 32, 30, 34, '1x'};
+            obj.ControlGrid = uigridlayout(obj.ControlPanel, [23 4]);
+            obj.ControlGrid.ColumnWidth = {105, 85, 105, '1x'};
+            obj.ControlGrid.RowHeight = [ ...
+                {26, 40}, repmat({24}, 1, 16), {32, 30, 40, 34, 34}];
+            obj.ControlGrid.Scrollable = 'on';
             obj.ControlGrid.Padding = [8 8 8 8];
-            obj.ControlGrid.RowSpacing = 5;
+            obj.ControlGrid.RowSpacing = 3;
             obj.ControlGrid.ColumnSpacing = 5;
 
             fileLabel = uilabel(obj.ControlGrid);
@@ -220,12 +234,12 @@ classdef ProcessingWindow < handle
             addLabel(obj, 9, 3, '每窗候选数');
             obj.MaxCandidatesEdit = addNumeric(obj, 9, 4, 6);
 
-            addLabel(obj, 10, 1, '拟合速度下限');
+            addLabel(obj, 10, 1, '轨迹速率下限');
             obj.FitSpeedMinEdit = addNumeric(obj, 10, 2, 200);
-            addLabel(obj, 10, 3, '拟合速度上限');
+            addLabel(obj, 10, 3, '轨迹速率上限');
             obj.FitSpeedMaxEdit = addNumeric(obj, 10, 4, 1700);
 
-            addLabel(obj, 11, 1, '参考速度 m/s');
+            addLabel(obj, 11, 1, '轨迹参考速率');
             obj.ReferenceSpeedEdit = addNumeric(obj, 11, 2, 400);
             addLabel(obj, 11, 3, '轨迹容差 m');
             obj.TrackToleranceEdit = addNumeric(obj, 11, 4, 0.55);
@@ -260,13 +274,31 @@ classdef ProcessingWindow < handle
             obj.MeanRemovalCheckBox.Layout.Row = 15;
             obj.MeanRemovalCheckBox.Layout.Column = [3 4];
 
+            addLabel(obj, 16, 1, '横向距离 d (m)');
+            obj.PerpendicularDistanceEdit = addNumeric(obj, 16, 2, 0);
+            obj.PerpendicularDistanceEdit.Limits = [0 Inf];
+            obj.PerpendicularDistanceEdit.Tooltip = ...
+                '雷达到直线运动轨迹的最短距离；0 表示共线/不作角度放大。';
+            addLabel(obj, 16, 3, '最小 |cosθ|');
+            obj.MinProjectionEdit = addNumeric(obj, 16, 4, 0.10);
+            obj.MinProjectionEdit.Limits = [0.01 1];
+            obj.MinProjectionEdit.Tooltip = ...
+                '投影系数低于此值时不作几何折算，防止近垂直视线误差放大。';
+            addLabel(obj, 17, 1, '径向方向');
+            obj.RadialDirectionDropDown = uidropdown(obj.ControlGrid, ...
+                'Items', {'远离（距离增加）', '接近（距离减小）'});
+            obj.RadialDirectionDropDown.Layout.Row = 17;
+            obj.RadialDirectionDropDown.Layout.Column = [2 4];
+            obj.ReferenceSpeedEdit.Tooltip = ...
+                '沿运动轨迹的参考速率（正数），不是有模糊径向速度。';
+
             obj.KeepIntermediateCheckBox = uicheckbox(obj.ControlGrid);
             obj.KeepIntermediateCheckBox.Text = '保留完整 RD Cube';
-            obj.KeepIntermediateCheckBox.Layout.Row = 16;
+            obj.KeepIntermediateCheckBox.Layout.Row = 18;
             obj.KeepIntermediateCheckBox.Layout.Column = [1 4];
 
             buttonGrid = uigridlayout(obj.ControlGrid, [1 3]);
-            buttonGrid.Layout.Row = 17;
+            buttonGrid.Layout.Row = 19;
             buttonGrid.Layout.Column = [1 4];
             buttonGrid.ColumnWidth = {'1x', '1x', '1x'};
             buttonGrid.Padding = [0 0 0 0];
@@ -289,21 +321,22 @@ classdef ProcessingWindow < handle
             obj.ProgressGauge = uigauge(obj.ControlGrid, 'linear');
             obj.ProgressGauge.Limits = [0 100];
             obj.ProgressGauge.Value = 0;
-            obj.ProgressGauge.Layout.Row = 18;
+            obj.ProgressGauge.Layout.Row = 20;
             obj.ProgressGauge.Layout.Column = [1 4];
 
             obj.StatusLabel = uilabel(obj.ControlGrid);
             obj.StatusLabel.Text = '就绪';
             obj.StatusLabel.WordWrap = 'on';
-            obj.StatusLabel.Layout.Row = 19;
+            obj.StatusLabel.Layout.Row = 21;
             obj.StatusLabel.Layout.Column = [1 4];
 
             noteLabel = uilabel(obj.ControlGrid);
             noteLabel.Text = [ ...
-                '候选距离只限制算法搜索；显示距离只控制图像范围。' ...
-                '参考速度用于速度约束与解模糊。'];
+                'd 为雷达到直线轨迹的最短距离，R 取每个目标点的斜距。' ...
+                '参考速率为沿轨迹速率。跨越最近点请分段处理；' ...
+                'R≤d 或投影系数过小的点不参与折算。方向须与径向速度符号约定一致。'];
             noteLabel.WordWrap = 'on';
-            noteLabel.Layout.Row = [20 21];
+            noteLabel.Layout.Row = [22 23];
             noteLabel.Layout.Column = [1 4];
 
             obj.TabGroup = uitabgroup(obj.MainGrid);
@@ -339,7 +372,7 @@ classdef ProcessingWindow < handle
             velocityGrid = uigridlayout(velocityTab, [1 1]);
             velocityGrid.Padding = [8 8 8 8];
             obj.VelocityAxes = uiaxes(velocityGrid);
-            title(obj.VelocityAxes, '有模糊/解模糊速度');
+            title(obj.VelocityAxes, '模糊径向 / 解模糊径向 / 沿轨迹速度');
             xlabel(obj.VelocityAxes, 'Time (ms)');
             ylabel(obj.VelocityAxes, 'Velocity (m/s)');
             grid(obj.VelocityAxes, 'on');
@@ -389,6 +422,17 @@ classdef ProcessingWindow < handle
             if isfield(cfg, 'measuredSpeed') ...
                     && isfinite(cfg.measuredSpeed)
                 obj.ReferenceSpeedEdit.Value = abs(cfg.measuredSpeed);
+            end
+            if isfield(cfg, 'perpendicularDistance')
+                obj.PerpendicularDistanceEdit.Value = cfg.perpendicularDistance;
+            end
+            if isfield(cfg, 'minRadialProjection')
+                obj.MinProjectionEdit.Value = cfg.minRadialProjection;
+            end
+            if isfield(cfg, 'radialDirection') && cfg.radialDirection < 0
+                obj.RadialDirectionDropDown.Value = '接近（距离减小）';
+            else
+                obj.RadialDirectionDropDown.Value = '远离（距离增加）';
             end
             if isfield(cfg, 'trackTolerance')
                 obj.TrackToleranceEdit.Value = cfg.trackTolerance;
@@ -479,6 +523,28 @@ classdef ProcessingWindow < handle
                     targetStart = min(obj.TotalFrames, bgEnd + 1);
                     targetEnd = min(obj.TotalFrames, targetStart + 9);
 
+                    if isfield(obj.BaseConfig, 'overviewTargetFrames')
+                        selected = obj.BaseConfig.overviewTargetFrames;
+                        if numel(selected) == 2 && all(isfinite(selected)) ...
+                                && all(selected == floor(selected)) ...
+                                && selected(1) >= 1 && selected(2) >= selected(1) ...
+                                && selected(2) <= obj.TotalFrames
+                            targetStart = selected(1);
+                            targetEnd = selected(2);
+                            bgEnd = max(1, targetStart - 1);
+                            bgStart = max(1, bgEnd - 9);
+                            obj.StatusLabel.Text = sprintf( ...
+                                '已接收界面1目标帧 %d~%d；请确认背景帧无目标。', ...
+                                targetStart, targetEnd);
+                            if targetStart == 1
+                                obj.StatusLabel.Text = ...
+                                    '目标范围从首帧开始，请手动选择无目标背景帧，避免背景含目标。';
+                            end
+                        else
+                            error('radarui:InvalidOverviewSelection', ...
+                                '界面1选择的帧范围超出当前文件，请重新选择。');
+                        end
+                    end
                     obj.BackgroundStartEdit.Value = bgStart;
                     obj.BackgroundEndEdit.Value = bgEnd;
                     obj.TargetStartEdit.Value = targetStart;
@@ -514,7 +580,17 @@ classdef ProcessingWindow < handle
 
             cfg.fitSpeedMin = obj.FitSpeedMinEdit.Value;
             cfg.fitSpeedMax = obj.FitSpeedMaxEdit.Value;
-            cfg.measuredSpeed = abs(obj.ReferenceSpeedEdit.Value);
+            cfg.measuredSpeed = obj.ReferenceSpeedEdit.Value;
+            % The UI speed limits constrain BOTH association and unwrapping.
+            % Do not retain hidden unwrap bounds from the original reference.
+            cfg.unwrapSpeedMin = cfg.fitSpeedMin;
+            cfg.unwrapSpeedMax = cfg.fitSpeedMax;
+            cfg.perpendicularDistance = obj.PerpendicularDistanceEdit.Value;
+            cfg.minRadialProjection = obj.MinProjectionEdit.Value;
+            cfg.radialDirection = 1;
+            if strcmp(obj.RadialDirectionDropDown.Value, '接近（距离减小）')
+                cfg.radialDirection = -1;
+            end
             cfg.trackTolerance = obj.TrackToleranceEdit.Value;
             cfg.trackStartTimeMs = obj.TrackStartTimeEdit.Value;
             cfg.trackEndTimeMs = obj.TrackEndTimeEdit.Value;
@@ -840,6 +916,13 @@ classdef ProcessingWindow < handle
                 '速度轴 Vmax: +/- %.3f m/s', ...
                 result.derived.vMax);
             lines{end + 1} = sprintf( ...
+                '横向距离 d: %.4f m；最小 |cosθ|: %.3f；径向方向: %+d', ...
+                result.cfg.perpendicularDistance, result.cfg.minRadialProjection, ...
+                result.cfg.radialDirection);
+            lines{end + 1} = sprintf( ...
+                '几何无效/近垂直视线候选点: %d（不参与轨迹及测速）', ...
+                result.fitInfo.geometryRejectedCount);
+            lines{end + 1} = sprintf( ...
                 '候选点数量: %d', ...
                 height(result.candidateTable));
             lines{end + 1} = sprintf( ...
@@ -849,21 +932,23 @@ classdef ProcessingWindow < handle
 
             if result.fitInfo.valid
                 lines{end + 1} = sprintf( ...
-                    '距离-时间拟合速度: %.3f m/s', ...
+                    '几何距离模型拟合的沿轨迹速率: %.3f m/s', ...
                     result.fitInfo.speed);
                 lines{end + 1} = sprintf( ...
                     '距离拟合 RMSE: %.4f m', ...
                     result.fitInfo.rmse);
+                lines{end + 1} = ...
+                    '逐点按 R 和 d 计算投影；径向解模糊速度与沿轨迹速率分别导出。';
                 lines{end + 1} = sprintf( ...
-                    '理论有模糊速度: %.3f m/s', ...
-                    result.fitInfo.expectedAliasedSpeed);
+                    '测速有效点: %d / %d', ...
+                    nnz(isfinite(result.trackTable.TargetSpeed_mps)), height(result.trackTable));
 
                 if isfinite(result.velocityMetrics.meanSpeed)
                     lines{end + 1} = sprintf( ...
-                        '平均解模糊速度: %.3f m/s', ...
+                        '平均沿轨迹速率（几何折算）: %.3f m/s', ...
                         result.velocityMetrics.meanSpeed);
                     lines{end + 1} = sprintf( ...
-                        '参考速度: %.3f m/s', ...
+                        '沿轨迹参考速率: %.3f m/s', ...
                         result.cfg.measuredSpeed);
                     lines{end + 1} = sprintf( ...
                         '相对参考速度 RMSE: %.3f m/s', ...
@@ -876,7 +961,7 @@ classdef ProcessingWindow < handle
                 lines{end + 1} = ...
                     '未找到满足当前参数约束的连续目标轨迹。';
                 lines{end + 1} = ...
-                    '可检查背景/目标帧范围、距离门、候选门限和速度范围。';
+                    '请检查帧范围、距离门、横向距离、径向方向及沿轨迹速率范围。';
             end
 
             obj.SummaryTextArea.Value = lines;
@@ -1093,7 +1178,7 @@ classdef ProcessingWindow < handle
                 track.AliasedVelocity_mps, ...
                 'o-', ...
                 'LineWidth', 1.1, ...
-                'DisplayName', '有模糊速度');
+                'DisplayName', '有模糊径向速度');
 
             if ismember( ...
                     'UnwrappedVelocity_mps', ...
@@ -1104,20 +1189,26 @@ classdef ProcessingWindow < handle
                     track.UnwrappedVelocity_mps, ...
                     's-', ...
                     'LineWidth', 1.5, ...
-                    'DisplayName', '解模糊速度');
+                    'DisplayName', '解模糊径向速度');
+            end
+
+            if ismember('TargetSpeed_mps', track.Properties.VariableNames)
+                plot(obj.VelocityAxes, track.Time_ms, track.TargetSpeed_mps, ...
+                    'd-', 'LineWidth', 1.6, ...
+                    'DisplayName', '沿轨迹速率（逐点几何折算）');
             end
 
             yline( ...
                 obj.VelocityAxes, ...
                 result.cfg.measuredSpeed, ...
                 '--', ...
-                '参考速度', ...
-                'DisplayName', '参考速度');
+                '沿轨迹参考速率', ...
+                'DisplayName', '沿轨迹参考速率');
 
             hold(obj.VelocityAxes, 'off');
             xlabel(obj.VelocityAxes, 'Time (ms)');
             ylabel(obj.VelocityAxes, 'Velocity (m/s)');
-            title(obj.VelocityAxes, '有模糊/解模糊速度');
+            title(obj.VelocityAxes, '模糊径向 / 解模糊径向 / 沿轨迹速度');
             grid(obj.VelocityAxes, 'on');
             legend(obj.VelocityAxes, 'Location', 'best');
         end

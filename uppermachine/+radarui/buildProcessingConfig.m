@@ -62,8 +62,8 @@ function cfg = buildProcessingConfig(appConfig)
     cfg.displayRangeMin = 0;
     cfg.displayRangeMax = 6;
 
-    % A reference speed is available in the upper machine, so velocity
-    % consistency can safely participate in track association by default.
+    % Interface 2 owns the editable reference speed and geometry settings.
+    % These are initial defaults, not speed measurements from interface 1.
     cfg.useVelocityHardGate = true;
     cfg.velocityTolerance = 70;
     cfg.velocityCostWeight = 0.60;
@@ -107,6 +107,9 @@ function cfg = buildProcessingConfig(appConfig)
     % GUI result keeps compact maps/tables by default, not the full 3-D
     % background and target RD cubes.
     cfg.keepIntermediateData = false;
+    if isfield(appConfig, 'overviewTargetFrames')
+        cfg.overviewTargetFrames = appConfig.overviewTargetFrames;
+    end
 end
 
 function value = getValue(s, fieldName, defaultValue)
