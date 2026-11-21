@@ -1,0 +1,20 @@
+name: UI geometry review
+on:
+  push:
+    branches: [fix/overview-snr-geometry]
+    paths: [.github/workflows/ui-geometry-review.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bundle reviewed source
+        run: git archive --format=zip --output=source-snapshot.zip HEAD src uppermachine/RadarControlMachineApp.m uppermachine/+radarui tests docs startup.m README.md configs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: radar-source-snapshot
+          path: source-snapshot.zip
+          retention-days: 3
