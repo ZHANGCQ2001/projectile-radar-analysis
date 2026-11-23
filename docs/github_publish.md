@@ -1,28 +1,42 @@
-# GitHub 公开发布步骤
+# 现有仓库的共享与发布
 
-## 发布前检查
+[返回文档索引](README.md) · [发布检查清单](release_checklist.md)
 
-1. 检查 `LICENSE` 中的作者名称是否正确。
-2. 修改 `CITATION.cff` 中的 GitHub 用户名和仓库地址。
-3. 确认代码、算法和实验结果允许公开。
-4. 搜索并删除绝对路径、设备 IP、人员信息和内部项目名称。
-5. 确认仓库内没有 `.bin`、`.raw`、`.mat`、日志和大体积 GIF。
-6. 在 MATLAB 中运行 `tests/run_tests.m`。
-7. 使用一份本地数据运行 `scripts/run_single_case.m`，确认结果输出正常。
+## 1. 不重新初始化或强制覆盖已有仓库
 
-## 初始化仓库
+本项目已经是Git仓库。日常更新不需要 `git init`、重设远端或强推 `main`。先保存本地改动、确认分支与差异：
 
 ```bash
-git init
-git add .
-git commit -m "Initial public release"
-git branch -M main
-git remote add origin <your-repository-url>
-git push -u origin main
+git status
+git branch --show-current
+git log -1 --oneline
 ```
 
-## 建议的首个 Release
+需要更新功能分支时：
 
-- Tag：`v0.1.0`
-- 标题：`Initial public release`
-- 说明：不包含外场原始数据；提供三组配置和公共处理流程；端到端结果需要用户自行准备 DCA1000 BIN 数据验证。
+```bash
+git switch feature/uppermachine-data-processing-v1
+git pull --ff-only
+```
+
+非快进错误时先检查本地提交与远端差异，不为消除提示直接使用 `reset --hard`。当前文档描述功能分支，不能假定默认 `main` 已包含相同界面和修复。
+
+## 2. 源码交付
+
+共享完整项目或从指定分支导出的源码，并注明提交号、所需MATLAB/工具箱、启动命令和测试范围。下载ZIP时保留原有目录结构；仅含改动文件的补丁包不是完整项目。
+
+离线启动也需JSON模板与可写目录；采集还需CLI配套文件和现场网络配置，见[采集说明](acquisition.md)。MATLAB源码、仅含源码的归档、含第三方依赖的交付包、独立安装程序是不同交付物，不能混称“安装包”。当前文档不声称已生成可双击安装的EXE。
+
+## 3. 版本发布前
+
+先执行[测试说明](testing.md)并保存结果，再检查README、CHANGELOG、CITATION与实际版本一致。若创建版本标签，必须指向已核验提交，明确是内部测试还是正式发布；不要因文档出现历史 `0.1.0` 就认定现在已经通过新的Release验收。
+
+仓库已有裁剪BIN、CSV/GIF和第三方二进制，发布策略应逐项审查而非简单宣称“没有任何数据或第三方内容”。完整实验数据、运行日志、runtime JSON、内部绝对路径不应未经审查进入发布包。第三方授权范围见[NOTICE](../NOTICE.md)。
+
+`SHA256SUMS.txt` 是既有清单；若发布流程需要校验和，应基于最终发布文件重新生成并核验，不能把未更新的历史清单当作新提交的完整性证明。
+
+## 4. Release说明应写什么
+
+写明提交/标签、主要界面和算法变更、数据格式、参数迁移、运行方法、测试环境、实机验证范围及已知限制。截图/GIF要标出来自哪个版本和数据集，历史结果不能冒充最新算法生成。
+
+当前未实现的循环存储、自动目标触发、板端预触发和实时无损接收，不纳入“已支持”列表。对采集溢出、关闭窗口清理和启动延迟等限制，应明确说明而非用测试通过标记掩盖。

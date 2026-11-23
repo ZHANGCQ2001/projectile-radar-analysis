@@ -1,5 +1,7 @@
 # 界面2：含横向距离的轨迹拟合与速度解模糊
 
+[返回文档索引](README.md) · [参数说明](parameters.md) · [算法流程](algorithm.md)
+
 ## 物理量与适用范围
 
 - `perpendicularDistance`（d，m）：雷达到目标直线运动轨迹的最短距离。存在高度差时应使用三维最短距离，不是仅用地面水平距离。
@@ -64,3 +66,43 @@ V_i(k) = v_r,i(k)/c_i
 CSV/MAT 保留这些字段。统计指标使用 `TargetSpeed_mps`。距离-速度耦合修正仍使用 `UnwrappedRadialVelocity_mps`，不能替换为沿轨迹速率。
 
 当前逐点折算使用 `Range_m`；原有可选距离-速度耦合修正仍作为后处理输出，并未实现耦合修正与几何估计的迭代联立求解。
+
+
+## 时间基准与初始距离
+
+`Time_ms` 是目标所选区间的相对窗口中心时间，源自 `processFrameRange`：
+
+```text
+t_i = (physicalFrame_i - targetFrameStart)*framePeriod
+      + (chirpStart_i - 1 + (winSize - 1)/2)*chirpPeriod
+```
+
+函数生成毫秒，拟合时再乘1e-3转成秒。第一窗口中心不一定为0；`fitInfo.intercept` 对应目标区间第一帧起点 t=0 的沿轨迹位置，而不是“第一窗口实测斜距”。原始斜距为 `Range_m`，几何预测斜距为 `FittedRange_m`，二者不可混淆。
+
+## 动态规划实际使用的约束
+
+对每个有效点和模糊数 k，在沿轨迹速率候选 `V_i(k)` 上计算：
+
+```text
+localCost(i,k) = unwrapMeasuredWeight*((V_i(k)-measuredSpeed)/measuredSpeedStd)^2
+               + unwrapFitWeight*((V_i(k)-referenceSpeed)/distanceFitSpeedStd)^2
+transition(i,k,j) = unwrapContinuityWeight*((V_i(k)-V_(i-1)(j))/unwrapContinuityStd)^2
+```
+
+此处函数参数 `referenceSpeed` 是 `fitInfo.speed`，配置字段 `measuredSpeed` 是用户输入的参考速率。超出 `unwrapSpeedMin/Max` 的状态不可行。按时间顺序求最小总代价并回溯，同时保留输入表的行顺序。
+
+连续性项是相邻有效点的速率差，未除以时间间隔；不能称为加速度滤波器。无可行路径时输出保持NaN并给出警告，不自动扩大模糊数范围或强制取参考值。
+
+## 输出解释补充
+
+- `GeometryValid=true` 仅表示距离/投影条件满足；还要检查 `isfinite(TargetSpeed_mps)`，才能认定该点产生了测速结果。
+- `AspectAngle_deg=acosd(abs(RadialProjection))` 丢弃方向符号；方向仍由投影符号/配置说明。
+- `fitInfo.speed` 是整段近似恒速几何模型的拟合结果；`TargetSpeed_mps` 是由每点 Doppler 解模糊并折算得到的速率，两者不必逐点相等。
+- 当前不是把距离观测和Doppler观测一次性联合优化，也不提供CRLB或测速置信区间。
+- 窗口中把目标近似为一点；距离栅格误差、横向距离误差、时间参数错误及目标关联错误均可能影响结果。输出曲线平滑不代表误差已经受控。
+
+## 对应源码与测试
+
+[几何投影](../src/+pradar/rangeGeometry.m) · [距离预测](../src/+pradar/predictRangeTrack.m) · [距离拟合](../src/+pradar/fitRangeTrack.m) · [轨迹搜索](../src/+pradar/selectTrack.m) · [候选关联](../src/+pradar/associateCandidates.m) · [速度解模糊](../src/+pradar/unwrapTrackVelocity.m)
+
+回归包括 `tests/test_rangeGeometry.m`、`tests/test_geometryTrack.m` 和 `tests/test_geometryUnwrap.m`；运行方法见[测试说明](testing.md)。
