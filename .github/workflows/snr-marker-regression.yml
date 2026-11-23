@@ -1,0 +1,64 @@
+name: SNR current-frame marker regression
+on:
+  push:
+    branches: [fix/snr-current-frame-marker]
+    paths: [.github/workflows/snr-marker-regression.yml]
+permissions:
+  contents: write
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/snr-current-frame-marker
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          release: R2025b
+          products: Signal_Processing_Toolbox
+      - name: Reproduce hidden marker accumulation before the fix
+        uses: matlab-actions/run-command@v3
+        with:
+          command: >-
+            startup; mkdir('marker-test-evidence'); reproduced=false;
+            try, regression_snr_frame_marker('marker-test-evidence/before');
+            catch ME, if contains(ME.message,'Expected exactly one frame marker; found'),
+            reproduced=true; fprintf('Expected baseline failure: %s\n',ME.message);
+            fid=fopen('marker-test-evidence/baseline-failure.txt','w'); fprintf(fid,'%s\n',ME.message); fclose(fid);
+            else, rethrow(ME); end; end;
+            assert(reproduced,'The regression did not reproduce the original marker defect.');
+      - name: Apply source-verified fix
+        run: python .github/apply-snr-marker-fix.py
+      - name: Check patch whitespace
+        run: git diff --check -- uppermachine/RadarControlMachineApp.m
+      - name: MATLAB unit regression
+        uses: matlab-actions/run-command@v3
+        with:
+          command: >-
+            startup; suite=testsuite('tests','IncludeSubfolders',true);
+            runner=matlab.unittest.TestRunner.withTextOutput;
+            runner.addPlugin(matlab.unittest.plugins.XMLPlugin.producingJUnitFormat('marker-test-evidence/junit.xml'));
+            results=runner.run(suite); save('marker-test-evidence/results.mat','results'); assertSuccess(results);
+      - name: Marker navigation and file-switch regression
+        uses: matlab-actions/run-command@v3
+        with:
+          command: startup; regression_snr_frame_marker('marker-test-evidence/after'); smoke_test_interfaces('marker-test-evidence/interfaces',false);
+      - name: Commit verified fix and remove temporary helpers
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add uppermachine/RadarControlMachineApp.m
+          git rm .github/apply-snr-marker-fix.py .github/workflows/snr-marker-regression.yml
+          git diff --cached --check
+          git commit -m 'fix: keep only the current SNR frame marker and clear it on reload'
+          git push origin HEAD:fix/snr-current-frame-marker
+          git rev-parse HEAD > marker-test-evidence/tested-commit.txt
+          cp uppermachine/RadarControlMachineApp.m marker-test-evidence/RadarControlMachineApp.m
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snr-marker-test-evidence
+          path: marker-test-evidence/
+          retention-days: 7
