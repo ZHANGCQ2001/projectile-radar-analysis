@@ -76,6 +76,7 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
         hColorbar_RawADC
         hColorbar_FFT1D
         hLegend_RawADC
+        hSnrCurrentFrameLine % Single owned marker for the overview frame
 
         % 雷达参数配置
         cfg_StartFreqGHz = 77;  % 起始频率 GHz
@@ -572,6 +573,11 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.trendWindowIdx = [];
             app.trendSnr = [];
             app.lastTrendLogWindowIdx = NaN;
+            % cla alone does not delete ConstantLine objects with hidden handles.
+            updateSnrCurrentFrameMarker(app, []);
+            if ~isempty(app.UIAxes_SNR) && isgraphics(app.UIAxes_SNR)
+                cla(app.UIAxes_SNR);
+            end
         end
 
         function logCurrentTrendPoint(app, currentIdx)
@@ -591,13 +597,48 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             scroll(app.LogTextArea, 'bottom');
         end
 
+        function updateSnrCurrentFrameMarker(app, physicalFrame)
+            if isempty(app.UIAxes_SNR) || ~isgraphics(app.UIAxes_SNR)
+                app.hSnrCurrentFrameLine = [];
+                return;
+            end
+
+            % findall includes HandleVisibility='off' objects left by old code.
+            % Constant lines in this overview axes represent the current frame.
+            markers = findall(app.UIAxes_SNR, 'Type', 'constantline');
+            if isempty(physicalFrame)
+                delete(markers);
+                app.hSnrCurrentFrameLine = [];
+                return;
+            end
+
+            marker = app.hSnrCurrentFrameLine;
+            if isscalar(marker) && isgraphics(marker) && ...
+                    isequal(marker.Parent, app.UIAxes_SNR)
+                % Keep one owned marker and remove any stale duplicates.
+                delete(markers(markers ~= marker));
+                marker.Value = physicalFrame;
+                marker.Visible = 'on';
+            else
+                delete(markers);
+                app.hSnrCurrentFrameLine = xline(app.UIAxes_SNR, ...
+                    physicalFrame, '--', '当前帧', ...
+                    'Tag', 'OverviewCurrentFrame', ...
+                    'HandleVisibility', 'off', ...
+                    'HitTest', 'off', 'PickableParts', 'none');
+            end
+        end
+
         function refreshTrendPlot(app, currentIdx)
             cla(app.UIAxes_SNR);
             title(app.UIAxes_SNR, '每帧最大 SNR（各滑窗取最大值）');
             xlabel(app.UIAxes_SNR, 'Physical Frame Index');
             ylabel(app.UIAxes_SNR, 'Maximum SNR (dB)');
             grid(app.UIAxes_SNR, 'on');
-            if isempty(app.trendSnr), return; end
+            if isempty(app.trendSnr)
+                updateSnrCurrentFrameMarker(app, []);
+                return;
+            end
             [frameIndex, frameSnr] = radarui.summarizeFrameSnr( ...
                 app.trendSnr, app.windows_per_frame);
             plot(app.UIAxes_SNR, frameIndex, frameSnr, '-o', ...
@@ -612,11 +653,12 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.UIAxes_SNR.YTickMode = 'auto';
             app.UIAxes_SNR.XTickLabelMode = 'auto';
             app.UIAxes_SNR.YTickLabelMode = 'auto';
-            if nargin >= 2 && isfinite(currentIdx)
-                physicalFrame = floor((currentIdx - 1) / app.windows_per_frame) + 1;
-                xline(app.UIAxes_SNR, physicalFrame, '--', '当前帧', ...
-                    'HandleVisibility', 'off');
+            physicalFrame = [];
+            if nargin >= 2 && isscalar(currentIdx) && isfinite(currentIdx) && ...
+                    currentIdx >= 1 && currentIdx <= numel(app.trendSnr)
+                physicalFrame = floor((round(currentIdx) - 1) / app.windows_per_frame) + 1;
             end
+            updateSnrCurrentFrameMarker(app, physicalFrame);
         end
 
         function updateRawAdcView(app, w_idx)
@@ -1298,6 +1340,10 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
                 scroll(app.LogTextArea, 'bottom');
                 return;
             end
+
+            % Clear the previous file's SNR curve and hidden frame marker
+            % before drawnow or any new-file parsing / precomputation can run.
+            clearTrendCache(app);
 
             % Clear display/cache state created with the previous window
             % parameters before rebuilding the velocity axis and RD grid.
