@@ -81,10 +81,7 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
         hColorbar_FFT1D
         hLegend_RawADC
         hSnrCurrentFrameLine % Single owned marker for the overview frame
-<<<<<<< Updated upstream
-=======
         lastSnrDetectionSig = '' % 去重：避免播放时每帧重复写 CFAR 检测日志
->>>>>>> Stashed changes
 
         % 雷达参数配置
         cfg_StartFreqGHz = 77;  % 起始频率 GHz
@@ -112,11 +109,6 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
         % 播放状态控制
         isPlaying = false;
         isSyncingJumpControls = false;
-
-        
-
-        % 数据处理子窗口
-        processingWindow
 
         
 
@@ -593,10 +585,7 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.trendWindowIdx = [];
             app.trendSnr = [];
             app.lastTrendLogWindowIdx = NaN;
-<<<<<<< Updated upstream
-=======
             app.lastSnrDetectionSig = '';
->>>>>>> Stashed changes
             % cla alone does not delete ConstantLine objects with hidden handles.
             updateSnrCurrentFrameMarker(app, []);
             if ~isempty(app.UIAxes_SNR) && isgraphics(app.UIAxes_SNR)
@@ -677,8 +666,6 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.UIAxes_SNR.YTickMode = 'auto';
             app.UIAxes_SNR.XTickLabelMode = 'auto';
             app.UIAxes_SNR.YTickLabelMode = 'auto';
-<<<<<<< Updated upstream
-=======
 
             % OS-CFAR 目标帧检测：在原曲线上叠加检测门限（橙色虚线）
             [~, startFrame, endFrame, thresholdDb] = ...
@@ -687,13 +674,10 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
                 'Color', [0.85 0.45 0.05], 'LineWidth', 1.2, 'LineStyle', '--', ...
                 'DisplayName', 'OS-CFAR 门限');
 
->>>>>>> Stashed changes
             physicalFrame = [];
             if nargin >= 2 && isscalar(currentIdx) && isfinite(currentIdx) && ...
                     currentIdx >= 1 && currentIdx <= numel(app.trendSnr)
                 physicalFrame = floor((round(currentIdx) - 1) / app.windows_per_frame) + 1;
-<<<<<<< Updated upstream
-=======
             end
             updateSnrCurrentFrameMarker(app, physicalFrame);
 
@@ -714,9 +698,7 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
                 end
                 app.LogTextArea.Value = [app.LogTextArea.Value; {msg}];
                 scroll(app.LogTextArea, 'bottom');
->>>>>>> Stashed changes
             end
-            updateSnrCurrentFrameMarker(app, physicalFrame);
         end
 
         function updateRawAdcView(app, w_idx)
@@ -1378,19 +1360,11 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
                 appConfig.chirpPeriodUs = app.cfg_ChirpPeriodUs;
                 appConfig.framePeriodMs = 3.5;
 
-<<<<<<< Updated upstream
-                appConfig.processingWinSize = min(16, app.cfg_Chirps);
-                appConfig.processingWinStep = ...
-                    appConfig.processingWinSize;
-                appConfig.processingDopplerFftSize = ...
-                    max(128, appConfig.processingWinSize);
-=======
                 appConfig.processingWinSize = min(64, app.cfg_Chirps);
                 appConfig.processingWinStep = ...
                     appConfig.processingWinSize;
                 appConfig.processingDopplerFftSize = ...
                     max(256, appConfig.processingWinSize);
->>>>>>> Stashed changes
 
                 if ~isempty(app.numFrames) && app.numFrames >= 1
                     firstFrame = round(app.OverviewStartEdit.Value);
@@ -1518,13 +1492,10 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.FrameSlider.Limits = [1 total_windows];
             app.FrameSlider.Value = 1;
             app.lastPhysicalMaxSnrLogWindowIdx = NaN;
-<<<<<<< Updated upstream
-=======
             app.FrameNumberEdit.Limits = [1 app.numFrames];
             app.FrameNumberEdit.Value = 1;
             app.WindowNumberEdit.Limits = [1 app.windows_per_frame];
             app.WindowNumberEdit.Value = 1;
->>>>>>> Stashed changes
             app.OverviewStartEdit.Limits = [1 app.numFrames];
             app.OverviewEndEdit.Limits = [1 app.numFrames];
             app.OverviewStartEdit.Value = 1;
