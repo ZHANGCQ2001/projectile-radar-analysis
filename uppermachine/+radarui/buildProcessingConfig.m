@@ -35,7 +35,11 @@ function cfg = buildProcessingConfig(appConfig)
     % Processing defaults are intentionally independent from the RD display
     % window in the legacy upper machine. The projectile algorithm needs a
     % short-time Doppler window.
+<<<<<<< Updated upstream
     requestedWinSize = getValue(appConfig, 'processingWinSize', 16);
+=======
+    requestedWinSize = getValue(appConfig, 'processingWinSize', 64);
+>>>>>>> Stashed changes
     cfg.winSize = min( ...
         cfg.numChirpsPerFrame, max(2, round(requestedWinSize)));
 
@@ -45,7 +49,11 @@ function cfg = buildProcessingConfig(appConfig)
         cfg.numChirpsPerFrame, max(1, round(requestedWinStep)));
 
     requestedDopplerFft = getValue( ...
+<<<<<<< Updated upstream
         appConfig, 'processingDopplerFftSize', 128);
+=======
+        appConfig, 'processingDopplerFftSize', 256);
+>>>>>>> Stashed changes
     requestedDopplerFft = max(cfg.winSize, round(requestedDopplerFft));
     if mod(requestedDopplerFft, 2) ~= 0
         requestedDopplerFft = requestedDopplerFft + 1;
@@ -60,7 +68,11 @@ function cfg = buildProcessingConfig(appConfig)
     % Keep algorithm gates separate from display limits. The default GUI
     % shows a wider scene while candidate extraction may use a tighter gate.
     cfg.displayRangeMin = 0;
+<<<<<<< Updated upstream
     cfg.displayRangeMax = 6;
+=======
+    cfg.displayRangeMax = 10;
+>>>>>>> Stashed changes
 
     % Interface 2 owns the editable reference speed and geometry settings.
     % These are initial defaults, not speed measurements from interface 1.

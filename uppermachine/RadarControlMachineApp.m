@@ -7,6 +7,10 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
         PrevButton         matlab.ui.control.Button
         PlayButton         matlab.ui.control.StateButton
         FrameLabel         matlab.ui.control.Label
+        FrameNumberEdit    matlab.ui.control.NumericEditField
+        WindowLabel        matlab.ui.control.Label
+        WindowNumberEdit   matlab.ui.control.NumericEditField
+        JumpButton         matlab.ui.control.Button
         SettingsBtn        matlab.ui.control.Button
         FrameSlider        matlab.ui.control.Slider
         LogTextArea        matlab.ui.control.TextArea
@@ -77,6 +81,10 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
         hColorbar_FFT1D
         hLegend_RawADC
         hSnrCurrentFrameLine % Single owned marker for the overview frame
+<<<<<<< Updated upstream
+=======
+        lastSnrDetectionSig = '' % 去重：避免播放时每帧重复写 CFAR 检测日志
+>>>>>>> Stashed changes
 
         % 雷达参数配置
         cfg_StartFreqGHz = 77;  % 起始频率 GHz
@@ -103,6 +111,12 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
 
         % 播放状态控制
         isPlaying = false;
+        isSyncingJumpControls = false;
+
+        
+
+        % 数据处理子窗口
+        processingWindow
 
         
 
@@ -430,11 +444,17 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             
             % 5. FFT处理
             rangeProfile = fft(adcOutFrame .* hann(numRangeSamples), app.cfg_RangeFftSize, 1);
+            rangeProfile = filter([1,-2,1],1,rangeProfile,[],2);
             % 0601 
             rangeDoppler = fft(rangeProfile .* hann(app.cfg_WinSize)', [], 2);
+            %numDopplerbin = size(rangeDoppler,2);
+            
+       
             % rd_3D = fftshift(fft(rangeDoppler ./ app.calib3D, app.cfg_AngleFftSize, 3), 3);
             rd_3D = sum(abs(rangeDoppler ./ app.calib3D), 3);
+            
             rangeDoppler_NCI = max(abs(rd_3D), [], 3);
+            
             rd_db = 20*log10(rangeDoppler_NCI + 1e-6);
         end
 
@@ -573,6 +593,10 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.trendWindowIdx = [];
             app.trendSnr = [];
             app.lastTrendLogWindowIdx = NaN;
+<<<<<<< Updated upstream
+=======
+            app.lastSnrDetectionSig = '';
+>>>>>>> Stashed changes
             % cla alone does not delete ConstantLine objects with hidden handles.
             updateSnrCurrentFrameMarker(app, []);
             if ~isempty(app.UIAxes_SNR) && isgraphics(app.UIAxes_SNR)
@@ -653,10 +677,44 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.UIAxes_SNR.YTickMode = 'auto';
             app.UIAxes_SNR.XTickLabelMode = 'auto';
             app.UIAxes_SNR.YTickLabelMode = 'auto';
+<<<<<<< Updated upstream
+=======
+
+            % OS-CFAR 目标帧检测：在原曲线上叠加检测门限（橙色虚线）
+            [~, startFrame, endFrame, thresholdDb] = ...
+                radarui.detectTargetFramesFromSnr(frameSnr);
+            line(app.UIAxes_SNR, frameIndex, thresholdDb, ...
+                'Color', [0.85 0.45 0.05], 'LineWidth', 1.2, 'LineStyle', '--', ...
+                'DisplayName', 'OS-CFAR 门限');
+
+>>>>>>> Stashed changes
             physicalFrame = [];
             if nargin >= 2 && isscalar(currentIdx) && isfinite(currentIdx) && ...
                     currentIdx >= 1 && currentIdx <= numel(app.trendSnr)
                 physicalFrame = floor((round(currentIdx) - 1) / app.windows_per_frame) + 1;
+<<<<<<< Updated upstream
+=======
+            end
+            updateSnrCurrentFrameMarker(app, physicalFrame);
+
+            % 检测结果写入日志，仅在区间发生变化时输出一次
+            if isempty(startFrame)
+                sig = 'none';
+            else
+                sig = sprintf('%d-%d;', [startFrame(:), endFrame(:)].');
+            end
+            if ~isequal(sig, app.lastSnrDetectionSig)
+                app.lastSnrDetectionSig = sig;
+                if isempty(startFrame)
+                    msg = '[OS-CFAR] 未检测到目标帧。';
+                else
+                    segs = arrayfun(@(a, b) sprintf('%d~%d', a, b), ...
+                        startFrame, endFrame, 'UniformOutput', false);
+                    msg = sprintf('[OS-CFAR] 目标帧区间：%s。', strjoin(segs, ', '));
+                end
+                app.LogTextArea.Value = [app.LogTextArea.Value; {msg}];
+                scroll(app.LogTextArea, 'bottom');
+>>>>>>> Stashed changes
             end
             updateSnrCurrentFrameMarker(app, physicalFrame);
         end
@@ -923,8 +981,44 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             if strcmp(app.ViewDropDown.Value, '最大 SNR 趋势图')
                 refreshTrendPlot(app, w_idx);
             end
-            app.FrameLabel.Text = sprintf('Phys Frame: %d | Window: %d', frame_idx, sub_idx + 1);
+            app.syncJumpControls(frame_idx, sub_idx + 1);
             app.ViewDropDownValueChanged();
+        end
+
+        function syncJumpControls(app, frameIdx, windowIdx)
+            app.isSyncingJumpControls = true;
+            try
+                app.FrameNumberEdit.Value = frameIdx;
+                app.WindowNumberEdit.Limits = [1 max(1, app.windows_per_frame)];
+                app.WindowNumberEdit.Value = windowIdx;
+            catch ME
+                app.isSyncingJumpControls = false;
+                rethrow(ME);
+            end
+            app.isSyncingJumpControls = false;
+        end
+
+        function jumpToEnteredFrameWindow(app)
+            if app.isSyncingJumpControls || isempty(app.fp) || app.fp < 0
+                return;
+            end
+            if app.PlayButton.Value == 1
+                app.PlayButton.Value = 0;
+            end
+
+            frameIdx = round(app.FrameNumberEdit.Value);
+            windowIdx = round(app.WindowNumberEdit.Value);
+            if ~isfinite(frameIdx) || ~isfinite(windowIdx)
+                return;
+            end
+
+            frameIdx = max(1, min(frameIdx, app.numFrames));
+            windowIdx = max(1, min(windowIdx, app.windows_per_frame));
+            wIdx = (frameIdx - 1) * app.windows_per_frame + windowIdx;
+            wIdx = max(1, min(wIdx, app.FrameSlider.Limits(2)));
+
+            app.FrameSlider.Value = wIdx;
+            app.updateFrame(wIdx);
         end
 
         function updatePhysicalMaxSnrMarker(app)
@@ -1284,11 +1378,19 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
                 appConfig.chirpPeriodUs = app.cfg_ChirpPeriodUs;
                 appConfig.framePeriodMs = 3.5;
 
+<<<<<<< Updated upstream
                 appConfig.processingWinSize = min(16, app.cfg_Chirps);
                 appConfig.processingWinStep = ...
                     appConfig.processingWinSize;
                 appConfig.processingDopplerFftSize = ...
                     max(128, appConfig.processingWinSize);
+=======
+                appConfig.processingWinSize = min(64, app.cfg_Chirps);
+                appConfig.processingWinStep = ...
+                    appConfig.processingWinSize;
+                appConfig.processingDopplerFftSize = ...
+                    max(256, appConfig.processingWinSize);
+>>>>>>> Stashed changes
 
                 if ~isempty(app.numFrames) && app.numFrames >= 1
                     firstFrame = round(app.OverviewStartEdit.Value);
@@ -1416,6 +1518,13 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             app.FrameSlider.Limits = [1 total_windows];
             app.FrameSlider.Value = 1;
             app.lastPhysicalMaxSnrLogWindowIdx = NaN;
+<<<<<<< Updated upstream
+=======
+            app.FrameNumberEdit.Limits = [1 app.numFrames];
+            app.FrameNumberEdit.Value = 1;
+            app.WindowNumberEdit.Limits = [1 app.windows_per_frame];
+            app.WindowNumberEdit.Value = 1;
+>>>>>>> Stashed changes
             app.OverviewStartEdit.Limits = [1 app.numFrames];
             app.OverviewEndEdit.Limits = [1 app.numFrames];
             app.OverviewStartEdit.Value = 1;
@@ -1619,6 +1728,21 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             f = round(app.FrameSlider.Value);
             app.updateFrame(f);
             
+        end
+
+        % Value changed function: FrameNumberEdit
+        function FrameNumberEditValueChanged(app, event)
+            app.jumpToEnteredFrameWindow();
+        end
+
+        % Value changed function: WindowNumberEdit
+        function WindowNumberEditValueChanged(app, event)
+            app.jumpToEnteredFrameWindow();
+        end
+
+        % Button pushed function: JumpButton
+        function JumpButtonPushed(app, event)
+            app.jumpToEnteredFrameWindow();
         end
 
         % Value changed function: ViewDropDown
@@ -2259,8 +2383,37 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
 
             % Create FrameLabel
             app.FrameLabel = uilabel(app.UIFigure);
-            app.FrameLabel.Position = [589 50 276 24];
-            app.FrameLabel.Text = 'Frame: 1 / N';
+            app.FrameLabel.HorizontalAlignment = 'right';
+            app.FrameLabel.Position = [540 50 20 22];
+            app.FrameLabel.Text = '帧';
+
+            % Create FrameNumberEdit
+            app.FrameNumberEdit = uieditfield(app.UIFigure, 'numeric');
+            app.FrameNumberEdit.Limits = [1 Inf];
+            app.FrameNumberEdit.RoundFractionalValues = 'on';
+            app.FrameNumberEdit.Position = [562 50 52 22];
+            app.FrameNumberEdit.Value = 1;
+            app.FrameNumberEdit.ValueChangedFcn = createCallbackFcn(app, @FrameNumberEditValueChanged, true);
+
+            % Create WindowLabel
+            app.WindowLabel = uilabel(app.UIFigure);
+            app.WindowLabel.HorizontalAlignment = 'right';
+            app.WindowLabel.Position = [620 50 20 22];
+            app.WindowLabel.Text = '窗';
+
+            % Create WindowNumberEdit
+            app.WindowNumberEdit = uieditfield(app.UIFigure, 'numeric');
+            app.WindowNumberEdit.Limits = [1 Inf];
+            app.WindowNumberEdit.RoundFractionalValues = 'on';
+            app.WindowNumberEdit.Position = [642 50 52 22];
+            app.WindowNumberEdit.Value = 1;
+            app.WindowNumberEdit.ValueChangedFcn = createCallbackFcn(app, @WindowNumberEditValueChanged, true);
+
+            % Create JumpButton
+            app.JumpButton = uibutton(app.UIFigure, 'push');
+            app.JumpButton.ButtonPushedFcn = createCallbackFcn(app, @JumpButtonPushed, true);
+            app.JumpButton.Position = [700 50 52 22];
+            app.JumpButton.Text = '跳转';
 
             % Create PlayButton
             app.PlayButton = uibutton(app.UIFigure, 'state');

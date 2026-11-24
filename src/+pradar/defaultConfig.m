@@ -8,7 +8,7 @@ function cfg = defaultConfig()
     cfg.numRx = 8;
     cfg.numTx = 1;
     cfg.rangeFftSize = 256;
-    cfg.dopplerFftSize = 128;
+    cfg.dopplerFftSize = 256;
     cfg.adcSampleRate = 10e6;
     cfg.slope = 60.01e12;
     cfg.startFreq = 77e9;
@@ -24,15 +24,15 @@ function cfg = defaultConfig()
     cfg.minRadialProjection = 0.10; % reject ill-conditioned LOS correction
 
     % Short-time RD processing
-    cfg.winSize = 16;
-    cfg.winStep = 16;
+    cfg.winSize = 64;
+    cfg.winStep = 64;
     cfg.slowTimeMeanRemoval = true;
     cfg.useFullAliasedVelocityAxis = false;
     cfg.highSpeedMin = 0;
 
     % Candidate extraction
-    cfg.candidateRangeMin = 0.25;
-    cfg.candidateRangeMax = 6.0;
+    cfg.candidateRangeMin = 2;
+    cfg.candidateRangeMax = 10;
     cfg.candidateThresholdDb = 3.0;
     cfg.maxCandidatesPerWindow = 6;
     cfg.minCandidateSeparation = 0.25;
