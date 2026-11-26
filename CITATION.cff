@@ -5,8 +5,8 @@ type: software
 authors:
   - family-names: "Zhang"
     given-names: "Cang"
-version: 0.1.0
-date-released: 2026-07-29
+version: 0.2.0
+date-released: 2026-11-26
 license: MIT
 repository-code: "https://github.com/ZHANGCQ2001/projectile-radar-analysis"
 keywords:
