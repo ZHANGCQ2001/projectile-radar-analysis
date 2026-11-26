@@ -2,21 +2,23 @@
 
 面向 **AWR2243-2X-CAS-EVM + AM2732R + DCA1000** 实测数据的 MATLAB 工程，包含上位机手动采集、全文件浏览、选定帧精细检测，以及脚本化离线分析。
 
-> 本文描述 `feature/uppermachine-data-processing-v1` 功能分支。两个界面分别负责“整体查看与选帧”和“精细目标检测与几何测速”。当前交付形式是 MATLAB 源码工程，不是已打包的独立安装程序。
+> 本分支从原功能分支 `88d02d5` 独立开发，采用最近点速度软约束的联合解模糊；原功能分支未被修改。算法和参数迁移见[新方法说明](docs/closest_approach_unwrapping.md)。
+
+> 本文描述 `feature/closest-approach-joint-unwrapping` 功能分支。两个界面分别负责“整体查看与选帧”和“精细目标检测与几何测速”。当前交付形式是 MATLAB 源码工程，不是已打包的独立安装程序。
 
 ## 快速运行
 
 第一次获取工程：
 
 ```bash
-git clone --branch feature/uppermachine-data-processing-v1 https://github.com/ZHANGCQ2001/projectile-radar-analysis.git
+git clone --branch feature/closest-approach-joint-unwrapping https://github.com/ZHANGCQ2001/projectile-radar-analysis.git
 cd projectile-radar-analysis
 ```
 
 已有本地仓库时，先保存本地改动并关闭旧 App，再更新：
 
 ```bash
-git switch feature/uppermachine-data-processing-v1
+git switch feature/closest-approach-joint-unwrapping
 git pull --ff-only
 ```
 
@@ -72,26 +74,18 @@ adcOutFrame = adcOutFrame - mean(adcOutFrame, 2);
 
 ### 界面2：精细检测与几何测速
 
-处理链为：短时 RD → 背景功率中值建模 → 背景增强 → 多候选提取 → 几何轨迹关联与拟合 → 逐点径向速度解模糊及沿轨迹速率折算。
+新默认模式为“最近点联合解模糊”：短时RD和候选提取 → 几何轨迹假设 → 距离与径向模糊速度联合拟合 → 模型预测辅助的径向动态规划 → 直接折算值/模型值分开输出。
 
-输入横向距离 `d` 是**雷达到直线运动轨迹的最短距离**。每个目标点使用自己的雷达—目标斜距 `R_i`，而不是整段共用一个距离或角度：
+参考速度只约束 `x=0` 最近点处的合速率一次，不再逐点约束整条轨迹。支持恒速、匀加速度和最近点两侧的连续运动；物理速度上下限独立于参考值。最近点时刻可联合估计或指定，时间原点是目标起始物理帧的开始。
 
-```text
-c_i = radialDirection * sqrt(R_i^2 - d^2) / R_i
-v_r,i(k) = v_alias,i + 2*k*Vmax
-V_i(k) = v_r,i(k) / c_i
-```
-
-径向候选先解模糊，再按该点投影折算；全局动态规划在沿轨迹速率域选解。速率范围和参考速率均为正值，运动方向单独选择。距离拟合使用 `R(t)=sqrt(d^2+(x0+V*t)^2)`，估计非零初始位置。
-
-`R_i<=d` 或投影过小的点不会强行折算；跨越最近点的轨迹要分成接近段和远离段处理。几何参数和参考速率必须按实验确认，默认 `d=0`、参考速率 `400 m/s` 不是实测结果。完整操作见[双界面说明](docs/uppermachine_processing.md)和[几何拟合说明](docs/track_fitting.md)。
+每点直接折算仍使用自身斜距和横向距离；小投影、R<=d、Doppler缺测不强行折算，保留NaN，另行输出模型速度。界面保留“旧版全程参考（对比）”供同数据核对。新模型的误差尺度、诊断、限制见[最近点联合解模糊](docs/closest_approach_unwrapping.md)。
 
 ## 最容易混淆的设置和指标
 
 | 项目 | 界面1 | 界面2（从界面1首次打开） |
 |---|---|---|
-| 默认滑窗/步进 | 256 / 256 Chirp | 16 / 16 Chirp；可单独修改 |
-| Doppler FFT | 长度等于当前滑窗长度 | 初始 128 点；不等于实际相干 Chirp 数 |
+| 默认滑窗/步进 | 256 / 256 Chirp | 64 / 64 Chirp；可单独修改 |
+| Doppler FFT | 长度等于当前滑窗长度 | 初始 256 点；不等于实际相干 Chirp 数 |
 | 慢时间去均值 | 固定开启 | 独立勾选框，首次默认关闭 |
 | 选帧指标 | 当前 RD 对数幅度与局部训练单元均值之差，界面称 SNR | 所选目标功率 / 所选背景功率的 dB 增强量 |
 | 距离/速度用途 | 浏览和定位数据区间 | 候选关联、几何拟合、解模糊、导出 |
@@ -144,7 +138,7 @@ run('scripts/run_single_case.m')
 
 界面2点击“导出结果”，选择目录后生成 `<bin>_processing_result.mat`、`<bin>_summary.txt`；候选表/轨迹表非空时分别生成 `<bin>_candidates.csv`、`<bin>_track.csv`。GUI 不自动生成 GIF。
 
-`UnwrappedVelocity_mps` 保留径向速度的兼容含义；几何折算后的速率读取 **`TargetSpeed_mps`**。相对参考速率的 RMSE/MAE 不是独立真值误差，因为该参考值也参与选解。
+`UnwrappedVelocity_mps` 保留径向速度含义；**`TargetSpeed_mps`** 是直接几何折算，**`ModelTargetSpeed_mps`** 是联合模型速度，不能混为独立测量。新模式停用全程对单个最近点参考值的RMSE/MAE，摘要给出最近点差异、模型残差和模糊分支不确定性。
 
 脚本入口 `pradar.runAnalysis` 另有图像/GIF/CSV 输出配置；`run_single_case.m` 还会覆盖部分 GIF 开关，应以最终配置为准。仓库 `results/` 中的 GIF/CSV 是历史案例产物，不能假定已由最新几何算法重新生成。
 

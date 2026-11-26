@@ -37,6 +37,16 @@ classdef ProcessingWindow < handle
         FitSpeedMinEdit
         FitSpeedMaxEdit
         ReferenceSpeedEdit
+        UseReferenceCheckBox
+        ReferenceStdEdit
+        MotionModelDropDown
+        UnwrapMethodDropDown
+        ClosestTimeKnownCheckBox
+        ClosestTimeEdit
+        AccelerationBoundEdit
+        RangeStdEdit
+        RadialStdEdit
+        MaxExtrapolationEdit
         PerpendicularDistanceEdit
         MinProjectionEdit
         RadialDirectionDropDown
@@ -96,6 +106,9 @@ classdef ProcessingWindow < handle
         end
 
         function setInput(obj, dataFile, baseCfg)
+            oldFile=string(obj.DataFileEdit.Value);
+            oldStart=obj.TargetStartEdit.Value;
+            oldPeriod=obj.FramePeriodEdit.Value;
             if nargin >= 3 && ~isempty(baseCfg)
                 % Re-opening from the overview changes radar/file selection,
                 % not the geometry/reference already entered in interface 2.
@@ -104,7 +117,14 @@ classdef ProcessingWindow < handle
                 baseCfg.radialDirection = 1;
                 if strcmp(obj.RadialDirectionDropDown.Value, '接近（距离减小）')
                     baseCfg.radialDirection = -1;
+                elseif strcmp(obj.RadialDirectionDropDown.Value, '跨越最近点')
+                    baseCfg.radialDirection = 0;
                 end
+                retained = obj.collectConfig(false);
+                names = {'unwrapMethod','motionModel','useClosestSpeedPrior', ...
+                    'closestSpeedStd','closestApproachTimeMs','closestMaxExtrapolationMs', ...
+                    'maxAbsAcceleration','jointRangeStd','jointRadialStd'};
+                for k=1:numel(names), baseCfg.(names{k})=retained.(names{k}); end
                 baseCfg.measuredSpeed = obj.ReferenceSpeedEdit.Value;
                 baseCfg.fitSpeedMin = obj.FitSpeedMinEdit.Value;
                 baseCfg.fitSpeedMax = obj.FitSpeedMaxEdit.Value;
@@ -117,6 +137,10 @@ classdef ProcessingWindow < handle
             end
 
             obj.refreshFileInfo();
+            if string(obj.DataFileEdit.Value)~=oldFile || ...
+                    obj.TargetStartEdit.Value~=oldStart || obj.FramePeriodEdit.Value~=oldPeriod
+                obj.invalidateClosestTime();
+            end
             obj.show();
         end
 
@@ -168,10 +192,10 @@ classdef ProcessingWindow < handle
             obj.ControlPanel.Layout.Row = 1;
             obj.ControlPanel.Layout.Column = 1;
 
-            obj.ControlGrid = uigridlayout(obj.ControlPanel, [23 4]);
+            obj.ControlGrid = uigridlayout(obj.ControlPanel, [29 4]);
             obj.ControlGrid.ColumnWidth = {105, 85, 105, '1x'};
             obj.ControlGrid.RowHeight = [ ...
-                {26, 40}, repmat({24}, 1, 16), {32, 30, 40, 34, 34}];
+                {26, 40}, repmat({24}, 1, 22), {32, 30, 40, 34, 34}];
             obj.ControlGrid.Scrollable = 'on';
             obj.ControlGrid.Padding = [8 8 8 8];
             obj.ControlGrid.RowSpacing = 3;
@@ -185,7 +209,7 @@ classdef ProcessingWindow < handle
             obj.DataFileEdit = uieditfield(obj.ControlGrid, 'text');
             obj.DataFileEdit.Layout.Row = 1;
             obj.DataFileEdit.Layout.Column = [2 3];
-            obj.DataFileEdit.ValueChangedFcn = @(~, ~) obj.refreshFileInfo();
+            obj.DataFileEdit.ValueChangedFcn = @(~, ~) obj.changedInputFile();
 
             obj.BrowseButton = uibutton(obj.ControlGrid, 'push');
             obj.BrowseButton.Text = '浏览';
@@ -206,6 +230,7 @@ classdef ProcessingWindow < handle
 
             addLabel(obj, 4, 1, '目标起始帧');
             obj.TargetStartEdit = addNumeric(obj, 4, 2, 1);
+            obj.TargetStartEdit.ValueChangedFcn = @(~,~) obj.invalidateClosestTime();
             addLabel(obj, 4, 3, '目标终止帧');
             obj.TargetEndEdit = addNumeric(obj, 4, 4, 1);
 
@@ -218,6 +243,7 @@ classdef ProcessingWindow < handle
             obj.DopplerFftEdit = addNumeric(obj, 6, 2, 128);
             addLabel(obj, 6, 3, '帧周期 ms');
             obj.FramePeriodEdit = addNumeric(obj, 6, 4, 3.5);
+            obj.FramePeriodEdit.ValueChangedFcn = @(~,~) obj.invalidateClosestTime();
 
             addLabel(obj, 7, 1, '候选距离下限');
             obj.RangeMinEdit = addNumeric(obj, 7, 2, 0.25);
@@ -234,12 +260,12 @@ classdef ProcessingWindow < handle
             addLabel(obj, 9, 3, '每窗候选数');
             obj.MaxCandidatesEdit = addNumeric(obj, 9, 4, 6);
 
-            addLabel(obj, 10, 1, '轨迹速率下限');
+            addLabel(obj, 10, 1, '物理速率下限');
             obj.FitSpeedMinEdit = addNumeric(obj, 10, 2, 200);
-            addLabel(obj, 10, 3, '轨迹速率上限');
+            addLabel(obj, 10, 3, '物理速率上限');
             obj.FitSpeedMaxEdit = addNumeric(obj, 10, 4, 1700);
 
-            addLabel(obj, 11, 1, '轨迹参考速率');
+            addLabel(obj, 11, 1, '最近点速率');
             obj.ReferenceSpeedEdit = addNumeric(obj, 11, 2, 400);
             addLabel(obj, 11, 3, '轨迹容差 m');
             obj.TrackToleranceEdit = addNumeric(obj, 11, 4, 0.55);
@@ -286,19 +312,53 @@ classdef ProcessingWindow < handle
                 '投影系数低于此值时不作几何折算，防止近垂直视线误差放大。';
             addLabel(obj, 17, 1, '径向方向');
             obj.RadialDirectionDropDown = uidropdown(obj.ControlGrid, ...
-                'Items', {'远离（距离增加）', '接近（距离减小）'});
+                'Items', {'远离（距离增加）', '接近（距离减小）', '跨越最近点'});
             obj.RadialDirectionDropDown.Layout.Row = 17;
             obj.RadialDirectionDropDown.Layout.Column = [2 4];
             obj.ReferenceSpeedEdit.Tooltip = ...
-                '沿运动轨迹的参考速率（正数），不是有模糊径向速度。';
+                '只约束几何最近点 x=0 处的合速率（m/s），不是全程速度，也不是首帧速度。';
+            obj.UnwrapMethodDropDown = uidropdown(obj.ControlGrid, ...
+                'Items',{'最近点联合解模糊','旧版全程参考（对比）'});
+            obj.UnwrapMethodDropDown.Layout.Row=18;
+            obj.UnwrapMethodDropDown.Layout.Column=[1 2];
+            obj.MotionModelDropDown = uidropdown(obj.ControlGrid, ...
+                'Items',{'匀加速度','恒速'});
+            obj.MotionModelDropDown.Layout.Row=18;
+            obj.MotionModelDropDown.Layout.Column=[3 4];
+            obj.UseReferenceCheckBox=uicheckbox(obj.ControlGrid, ...
+                'Text','使用最近点速度软约束','Value',true);
+            obj.UseReferenceCheckBox.Layout.Row=19;
+            obj.UseReferenceCheckBox.Layout.Column=[1 2];
+            addLabel(obj,19,3,'参考 σ (m/s)');
+            obj.ReferenceStdEdit=addNumeric(obj,19,4,35);
+            obj.ReferenceStdEdit.Limits=[eps Inf];
+            obj.ClosestTimeKnownCheckBox=uicheckbox(obj.ControlGrid, ...
+                'Text','指定最近点时刻');
+            obj.ClosestTimeKnownCheckBox.Layout.Row=20;
+            obj.ClosestTimeKnownCheckBox.Layout.Column=[1 2];
+            addLabel(obj,20,3,'最近点 ms');
+            obj.ClosestTimeEdit=addNumeric(obj,20,4,0);
+            obj.ClosestTimeEdit.Tooltip='相对于目标起始物理帧开始的毫秒数；可为负数。不勾选时联合估计。';
+            addLabel(obj,21,1,'最大 |a| m/s²');
+            obj.AccelerationBoundEdit=addNumeric(obj,21,2,5e4);
+            addLabel(obj,21,3,'最大外推 ms');
+            obj.MaxExtrapolationEdit=addNumeric(obj,21,4,50);
+            addLabel(obj,22,1,'测距 σ (m)');
+            obj.RangeStdEdit=addNumeric(obj,22,2,0.10);
+            addLabel(obj,22,3,'径向 σ (m/s)');
+            obj.RadialStdEdit=addNumeric(obj,22,4,5);
+            uncertaintyNote=uilabel(obj.ControlGrid, ...
+                'Text','σ 是观测误差，须标定；并非 FFT 网格间距。','WordWrap','on');
+            uncertaintyNote.Layout.Row=23;
+            uncertaintyNote.Layout.Column=[1 4];
 
             obj.KeepIntermediateCheckBox = uicheckbox(obj.ControlGrid);
             obj.KeepIntermediateCheckBox.Text = '保留完整 RD Cube';
-            obj.KeepIntermediateCheckBox.Layout.Row = 18;
+            obj.KeepIntermediateCheckBox.Layout.Row = 24;
             obj.KeepIntermediateCheckBox.Layout.Column = [1 4];
 
             buttonGrid = uigridlayout(obj.ControlGrid, [1 3]);
-            buttonGrid.Layout.Row = 19;
+            buttonGrid.Layout.Row = 25;
             buttonGrid.Layout.Column = [1 4];
             buttonGrid.ColumnWidth = {'1x', '1x', '1x'};
             buttonGrid.Padding = [0 0 0 0];
@@ -321,22 +381,22 @@ classdef ProcessingWindow < handle
             obj.ProgressGauge = uigauge(obj.ControlGrid, 'linear');
             obj.ProgressGauge.Limits = [0 100];
             obj.ProgressGauge.Value = 0;
-            obj.ProgressGauge.Layout.Row = 20;
+            obj.ProgressGauge.Layout.Row = 26;
             obj.ProgressGauge.Layout.Column = [1 4];
 
             obj.StatusLabel = uilabel(obj.ControlGrid);
             obj.StatusLabel.Text = '就绪';
             obj.StatusLabel.WordWrap = 'on';
-            obj.StatusLabel.Layout.Row = 21;
+            obj.StatusLabel.Layout.Row = 27;
             obj.StatusLabel.Layout.Column = [1 4];
 
             noteLabel = uilabel(obj.ControlGrid);
             noteLabel.Text = [ ...
                 'd 为雷达到直线轨迹的最短距离，R 取每个目标点的斜距。' ...
-                '参考速率为沿轨迹速率。跨越最近点请分段处理；' ...
-                'R≤d 或投影系数过小的点不参与折算。方向须与径向速度符号约定一致。'];
+                '参考仅约束最近点合速度。低投影点保留距离观测，但不作直接速度折算。' ...
+                '跨最近点请选择对应方向；模型速度并非逐点独立测速。' ];
             noteLabel.WordWrap = 'on';
-            noteLabel.Layout.Row = [22 23];
+            noteLabel.Layout.Row = [28 29];
             noteLabel.Layout.Column = [1 4];
 
             obj.TabGroup = uitabgroup(obj.MainGrid);
@@ -379,6 +439,24 @@ classdef ProcessingWindow < handle
         end
 
         function applyConfigToControls(obj, cfg)
+            defaults=pradar.defaultConfig();
+            names=fieldnames(defaults);
+            for k=1:numel(names)
+                if ~isfield(cfg,names{k}), cfg.(names{k})=defaults.(names{k}); end
+            end
+            obj.UseReferenceCheckBox.Value=logical(cfg.useClosestSpeedPrior);
+            obj.ReferenceStdEdit.Value=cfg.closestSpeedStd;
+            obj.ClosestTimeKnownCheckBox.Value=isfinite(cfg.closestApproachTimeMs);
+            obj.ClosestTimeEdit.Value=0;
+            if isfinite(cfg.closestApproachTimeMs), obj.ClosestTimeEdit.Value=cfg.closestApproachTimeMs; end
+            obj.AccelerationBoundEdit.Value=cfg.maxAbsAcceleration;
+            obj.MaxExtrapolationEdit.Value=cfg.closestMaxExtrapolationMs;
+            obj.RangeStdEdit.Value=cfg.jointRangeStd;
+            obj.RadialStdEdit.Value=cfg.jointRadialStd;
+            obj.UnwrapMethodDropDown.Value='最近点联合解模糊';
+            if strcmp(cfg.unwrapMethod,'legacy'), obj.UnwrapMethodDropDown.Value='旧版全程参考（对比）'; end
+            obj.MotionModelDropDown.Value='匀加速度';
+            if strcmp(cfg.motionModel,'constantVelocity'), obj.MotionModelDropDown.Value='恒速'; end
             if isfield(cfg, 'winSize')
                 obj.WinSizeEdit.Value = cfg.winSize;
             end
@@ -429,7 +507,9 @@ classdef ProcessingWindow < handle
             if isfield(cfg, 'minRadialProjection')
                 obj.MinProjectionEdit.Value = cfg.minRadialProjection;
             end
-            if isfield(cfg, 'radialDirection') && cfg.radialDirection < 0
+            if isfield(cfg,'radialDirection') && cfg.radialDirection == 0
+                obj.RadialDirectionDropDown.Value = '跨越最近点';
+            elseif isfield(cfg, 'radialDirection') && cfg.radialDirection < 0
                 obj.RadialDirectionDropDown.Value = '接近（距离减小）';
             else
                 obj.RadialDirectionDropDown.Value = '远离（距离增加）';
@@ -492,6 +572,18 @@ classdef ProcessingWindow < handle
             end
 
             obj.DataFileEdit.Value = fullfile(filePath, fileName);
+            obj.changedInputFile();
+        end
+
+        function invalidateClosestTime(obj)
+            if obj.ClosestTimeKnownCheckBox.Value
+                obj.ClosestTimeKnownCheckBox.Value=false;
+                obj.StatusLabel.Text='时间基准已改变：最近点时刻改为自动估计，请重新确认已知时刻。';
+            end
+        end
+
+        function changedInputFile(obj)
+            obj.invalidateClosestTime();
             obj.refreshFileInfo();
         end
 
@@ -563,6 +655,18 @@ classdef ProcessingWindow < handle
             end
 
             cfg = obj.BaseConfig;
+            cfg.unwrapMethod="closestApproach";
+            if strcmp(obj.UnwrapMethodDropDown.Value,'旧版全程参考（对比）'), cfg.unwrapMethod="legacy"; end
+            cfg.motionModel="constantAcceleration";
+            if strcmp(obj.MotionModelDropDown.Value,'恒速'), cfg.motionModel="constantVelocity"; end
+            cfg.useClosestSpeedPrior=logical(obj.UseReferenceCheckBox.Value);
+            cfg.closestSpeedStd=obj.ReferenceStdEdit.Value;
+            cfg.closestApproachTimeMs=NaN;
+            if obj.ClosestTimeKnownCheckBox.Value, cfg.closestApproachTimeMs=obj.ClosestTimeEdit.Value; end
+            cfg.maxAbsAcceleration=obj.AccelerationBoundEdit.Value;
+            cfg.closestMaxExtrapolationMs=obj.MaxExtrapolationEdit.Value;
+            cfg.jointRangeStd=obj.RangeStdEdit.Value;
+            cfg.jointRadialStd=obj.RadialStdEdit.Value;
 
             cfg.winSize = round(obj.WinSizeEdit.Value);
             cfg.winStep = round(obj.WinStepEdit.Value);
@@ -590,6 +694,8 @@ classdef ProcessingWindow < handle
             cfg.radialDirection = 1;
             if strcmp(obj.RadialDirectionDropDown.Value, '接近（距离减小）')
                 cfg.radialDirection = -1;
+            elseif strcmp(obj.RadialDirectionDropDown.Value, '跨越最近点')
+                cfg.radialDirection = 0;
             end
             cfg.trackTolerance = obj.TrackToleranceEdit.Value;
             cfg.trackStartTimeMs = obj.TrackStartTimeEdit.Value;
@@ -663,7 +769,8 @@ classdef ProcessingWindow < handle
                 error('radarui:InvalidHighSpeedMin', ...
                     '最小模糊速度不能为负数。');
             end
-            if ~isfinite(cfg.measuredSpeed) || cfg.measuredSpeed <= 0
+            if (strcmp(cfg.unwrapMethod,'legacy') || cfg.useClosestSpeedPrior) ...
+                    && (~isfinite(cfg.measuredSpeed) || cfg.measuredSpeed <= 0)
                 error('radarui:InvalidReferenceSpeed', ...
                     '参考速度必须为正数。');
             end
@@ -920,7 +1027,7 @@ classdef ProcessingWindow < handle
                 result.cfg.perpendicularDistance, result.cfg.minRadialProjection, ...
                 result.cfg.radialDirection);
             lines{end + 1} = sprintf( ...
-                '几何无效/近垂直视线候选点: %d（不参与轨迹及测速）', ...
+                '无效距离候选点: %d（新模式保留低投影距离观测）', ...
                 result.fitInfo.geometryRejectedCount);
             lines{end + 1} = sprintf( ...
                 '候选点数量: %d', ...
@@ -930,7 +1037,21 @@ classdef ProcessingWindow < handle
                 height(result.trackTable));
             lines{end + 1} = ' ';
 
-            if result.fitInfo.valid
+            if result.fitInfo.valid && isfield(result.fitInfo,'unwrapInfo')
+                info=result.fitInfo.unwrapInfo;
+                lines{end+1}=sprintf('联合模型: %s；求解状态: %s',result.cfg.motionModel,info.status);
+                lines{end+1}=sprintf('最近点时刻: %.4f ms；最近点合速度: %.3f m/s',info.closestTimeMs,info.closestSpeed);
+                lines{end+1}=sprintf('沿轨迹加速度: %.3f m/s²；最近点位于选段外: %s', ...
+                    info.acceleration,onOffText(info.closestTimeExtrapolated));
+                lines{end+1}=sprintf('最近点参考差异: %.3f m/s（不是独立精度验证）',info.anchorResidual);
+                lines{end+1}=sprintf('距离残差 RMS: %.4f m；径向残差 RMS: %.3f m/s',info.rangeRmse,info.radialRmse);
+                lines{end+1}=sprintf('已搜索 %d 个初值 / %d 条不同模糊路径；代价间隔: %.3f', ...
+                    info.numStarts,info.numDistinctPaths,info.ambiguityCostGap);
+                lines{end+1}=sprintf('模糊分支存在不确定性: %s（间隔不是概率或全局最优证明）',onOffText(info.ambiguityUncertain));
+                lines{end+1}=sprintf('可直接几何折算点: %d / %d；低投影处仅报告模型速度。', ...
+                    nnz(result.trackTable.GeometryValid),height(result.trackTable));
+                lines{end+1}='全程对单个最近点参考值的 RMSE/MAE 已停用。';
+            elseif result.fitInfo.valid
                 lines{end + 1} = sprintf( ...
                     '几何距离模型拟合的沿轨迹速率: %.3f m/s', ...
                     result.fitInfo.speed);
@@ -1198,12 +1319,19 @@ classdef ProcessingWindow < handle
                     'DisplayName', '沿轨迹速率（逐点几何折算）');
             end
 
-            yline( ...
-                obj.VelocityAxes, ...
-                result.cfg.measuredSpeed, ...
-                '--', ...
-                '沿轨迹参考速率', ...
-                'DisplayName', '沿轨迹参考速率');
+            if isfield(result.fitInfo,'unwrapInfo')
+                info=result.fitInfo.unwrapInfo;
+                plot(obj.VelocityAxes,track.Time_ms,track.ModelTargetSpeed_mps, ...
+                    '--','LineWidth',1.7,'DisplayName','联合运动模型速度（含低投影区）');
+                if result.cfg.useClosestSpeedPrior && info.closestTimeMs>=min(track.Time_ms) ...
+                        && info.closestTimeMs<=max(track.Time_ms)
+                    plot(obj.VelocityAxes,info.closestTimeMs,result.cfg.measuredSpeed, ...
+                        'p','MarkerSize',11,'DisplayName','最近点参考值（仅此时刻）');
+                end
+            else
+                yline(obj.VelocityAxes,result.cfg.measuredSpeed,'--', ...
+                    '旧版全程参考','DisplayName','旧版全程参考');
+            end
 
             hold(obj.VelocityAxes, 'off');
             xlabel(obj.VelocityAxes, 'Time (ms)');

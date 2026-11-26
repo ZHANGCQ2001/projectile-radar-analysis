@@ -17,7 +17,7 @@ function smoke_test_interfaces(outputDir, exportImages)
     feval(app.LoadBtn.ButtonPushedFcn, app.LoadBtn, []);
     app.ViewDropDown.Value = '最大 SNR 趋势图';
     feval(app.ViewDropDown.ValueChangedFcn,app.ViewDropDown,[]);
-    plotted = findobj(app.UIAxes_SNR,'Type','line');
+    plotted = findobj(app.UIAxes_SNR,'Type','line','DisplayName','每帧最大 SNR');
     assert(~isempty(plotted),'SNR trend was not plotted.');
     assert(numel(plotted(1).YData)==10,'Expected ten physical-frame SNR values.');
     app.OverviewStartEdit.Value = 3; app.OverviewEndEdit.Value = 6;
@@ -36,9 +36,16 @@ function smoke_test_interfaces(outputDir, exportImages)
     win.PerpendicularDistanceEdit.Value = 1;
     win.MinProjectionEdit.Value = 0.2;
     win.RadialDirectionDropDown.Value = '接近（距离减小）';
+    win.ReferenceStdEdit.Value=55;
+    win.ClosestTimeKnownCheckBox.Value=true;
+    win.ClosestTimeEdit.Value=-2;
+    win.MotionModelDropDown.Value='恒速';
     cfg.overviewTargetFrames = [5 8];
     win.setInput(dataFile,cfg);
     assert(win.ReferenceSpeedEdit.Value==800);
+    assert(win.ReferenceStdEdit.Value==55);
+    assert(~win.ClosestTimeKnownCheckBox.Value, 'Changing target start must invalidate the relative closest time.');
+    assert(strcmp(win.MotionModelDropDown.Value,'恒速'));
     assert(win.FitSpeedMinEdit.Value==600 && win.FitSpeedMaxEdit.Value==1000);
     assert(win.PerpendicularDistanceEdit.Value==1);
     assert(win.MinProjectionEdit.Value==0.2);
@@ -48,6 +55,22 @@ function smoke_test_interfaces(outputDir, exportImages)
     if exportImages
         exportapp(win.UIFigure,fullfile(outputDir,'interface2.png'));
     end
+    win.ClosestTimeKnownCheckBox.Value=true;
+    win.ClosestTimeEdit.Value=2;
+    win.setInput(dataFile,cfg);
+    assert(win.ClosestTimeKnownCheckBox.Value && win.ClosestTimeEdit.Value==2);
+    win.TargetStartEdit.Value=6;
+    feval(win.TargetStartEdit.ValueChangedFcn,win.TargetStartEdit,[]);
+    assert(~win.ClosestTimeKnownCheckBox.Value);
+    win.ClosestTimeKnownCheckBox.Value=true;
+    win.FramePeriodEdit.Value=4;
+    feval(win.FramePeriodEdit.ValueChangedFcn,win.FramePeriodEdit,[]);
+    assert(~win.ClosestTimeKnownCheckBox.Value);
+    win.ClosestTimeKnownCheckBox.Value=true;
+    feval(win.DataFileEdit.ValueChangedFcn,win.DataFileEdit,[]);
+    assert(~win.ClosestTimeKnownCheckBox.Value);
+    win.UseReferenceCheckBox.Value=false;
+    win.ReferenceSpeedEdit.Value=0; % unused placeholder must not block processing
     feval(win.RunButton.ButtonPushedFcn,win.RunButton,[]);
     assert(startsWith(win.StatusLabel.Text,'处理完成'), ...
         'Detailed processing did not complete: %s',win.StatusLabel.Text);

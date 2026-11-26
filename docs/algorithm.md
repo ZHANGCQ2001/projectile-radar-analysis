@@ -2,6 +2,10 @@
 
 [返回文档索引](README.md) · [参数说明](parameters.md) · [几何拟合](track_fitting.md)
 
+## 本分支的精细处理更新
+
+界面1/RD前端不变。界面2默认由 `selectMotionTrack`、`jointUnwrapTrack` 和 `radialAliasPath` 执行距离—径向速度联合估计，参考值仅作为最近点的一个软约束。具体目标函数和诊断见[联合方法](closest_approach_unwrapping.md)。下面第4、5节原有单侧恒速、逐点参考与MAE/RMSE描述仅针对显式legacy模式；不再代表新默认行为。
+
 ## 1. 两个界面不是同一条 RD 处理链
 
 | 内容 | 界面1整体浏览 | 界面2/公共精细处理 |

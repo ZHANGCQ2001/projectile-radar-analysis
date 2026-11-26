@@ -3,7 +3,7 @@ function tests = test_rangeGeometry
 end
 
 function testThreeFourFiveGeometry(testCase)
-    cfg = pradar.defaultConfig(); cfg.perpendicularDistance = 3;
+    cfg = pradar.defaultConfig(); cfg.unwrapMethod="legacy"; cfg.perpendicularDistance = 3;
     [c, valid, x] = pradar.rangeGeometry(5, cfg);
     verifyTrue(testCase, valid);
     verifyEqual(testCase, c, 0.8, 'AbsTol', 1e-12);
@@ -15,7 +15,7 @@ function testThreeFourFiveGeometry(testCase)
 end
 
 function testInvalidAndNearPerpendicularRanges(testCase)
-    cfg = pradar.defaultConfig(); cfg.perpendicularDistance = 3;
+    cfg = pradar.defaultConfig(); cfg.unwrapMethod="legacy"; cfg.perpendicularDistance = 3;
     [c, valid, x] = pradar.rangeGeometry([2; 3; NaN; Inf; 3.000001; 5], cfg);
     verifyEqual(testCase, valid, [false(5,1); true]);
     verifyTrue(testCase, all(isnan(c(1:5))));
@@ -23,7 +23,7 @@ function testInvalidAndNearPerpendicularRanges(testCase)
 end
 
 function testZeroOffsetCompatibility(testCase)
-    cfg = pradar.defaultConfig();
+    cfg = pradar.defaultConfig(); cfg.unwrapMethod="legacy";
     [c, valid, x] = pradar.rangeGeometry([1; 5; 10], cfg);
     verifyEqual(testCase, c, ones(3,1));
     verifyTrue(testCase, all(valid));
@@ -31,7 +31,7 @@ function testZeroOffsetCompatibility(testCase)
 end
 
 function testGeometryConfigValidation(testCase)
-    cfg = pradar.defaultConfig(); cfg.measuredSpeed = 400;
+    cfg = pradar.defaultConfig(); cfg.unwrapMethod="legacy"; cfg.measuredSpeed = 400;
     cfg.radialDirection = 0;
     verifyError(testCase, @() pradar.validateConfig(cfg), 'pradar:InvalidRadialDirection');
     cfg.radialDirection = 1; cfg.perpendicularDistance = -1;

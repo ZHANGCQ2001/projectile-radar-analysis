@@ -79,11 +79,12 @@ function cfg = buildProcessingConfig(appConfig)
     end
     cfg.measuredSpeed = referenceSpeed;
 
-    cfg.fitSpeedMin = max(1, 0.45 * referenceSpeed);
-    cfg.fitSpeedMax = max(cfg.fitSpeedMin + 100, 1.55 * referenceSpeed);
-    cfg.unwrapSpeedMin = max(0, 0.45 * referenceSpeed);
-    cfg.unwrapSpeedMax = max( ...
-        cfg.unwrapSpeedMin + 100, 1.55 * referenceSpeed);
+    % Physical bounds are independent of the closest-point speed prior.
+    % Editing the anchor must not silently prune other-time velocity branches.
+    cfg.fitSpeedMin = 1;
+    cfg.fitSpeedMax = 2000;
+    cfg.unwrapSpeedMin = cfg.fitSpeedMin;
+    cfg.unwrapSpeedMax = cfg.fitSpeedMax;
 
     cfg.measuredSpeedStd = max(35, 0.08 * referenceSpeed);
     cfg.distanceFitSpeedStd = max(50, 0.10 * referenceSpeed);

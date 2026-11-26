@@ -18,9 +18,9 @@ function cfg = defaultConfig()
 
     % Straight-trajectory geometry. Distances are metres; reference/fit/
     % unwrap speed bounds are ALONG-TRAJECTORY speeds. Legacy d=0, +1 is
-    % equivalent to radial-only processing. Split closest-approach crossings.
+    % equivalent to radial-only processing. Joint mode supports crossings.
     cfg.perpendicularDistance = 0;
-    cfg.radialDirection = 1;       % +1 receding, -1 approaching
+    cfg.radialDirection = 1;       % +1 receding, -1 approaching, 0 joint crossing
     cfg.minRadialProjection = 0.10; % reject ill-conditioned LOS correction
 
     % Short-time RD processing
@@ -70,7 +70,26 @@ function cfg = defaultConfig()
     cfg.trackVelocityPenalty = 0.30;
     cfg.maxTrackIterations = 6;
 
-    % Velocity unwrapping
+    % Closest-approach joint estimator (legacy remains explicit for comparison).
+    cfg.unwrapMethod = "closestApproach";
+    cfg.motionModel = "constantAcceleration"; % or "constantVelocity"
+    cfg.useClosestSpeedPrior = true;
+    cfg.closestSpeedStd = 35;                 % m/s, ONE prior at x=0
+    cfg.closestApproachTimeMs = NaN;          % relative to target-frame start
+    cfg.closestMaxExtrapolationMs = 50;       % bounded extrapolation, not truth
+    cfg.maxAbsAcceleration = 5e4;            % m/s^2, physical bound
+    cfg.motionAccelerationStd = 2e4;         % weak zero-acceleration regularizer
+    cfg.jointRangeStd = 0.10;                 % m, measurement error, NOT FFT bin
+    cfg.jointRadialStd = 5;                   % m/s, must be calibrated
+    cfg.jointHuberDelta = 2.5;
+    cfg.jointTransitionWeight = 0.20;
+    cfg.jointMaxIterations = 4;
+    cfg.jointMaxStarts = 10;
+    cfg.jointMaxTrackHypotheses = 6;
+    cfg.jointAmbiguityGapThreshold = 9;       % diagnostic cost gap, not probability
+    cfg.jointMaxNormalizedResidual = 6;
+
+    % Legacy velocity unwrapping (used only by unwrapMethod="legacy")
     cfg.measuredSpeed = NaN;
     cfg.measuredSpeedStd = 35;
     cfg.distanceFitSpeedStd = 50;

@@ -1,10 +1,17 @@
-function trackTable = unwrapTrackVelocity(trackTable, vMax, referenceSpeed, cfg)
+function [trackTable, unwrapInfo] = unwrapTrackVelocity(trackTable, vMax, referenceSpeed, cfg)
 %UNWRAPTRACKVELOCITY Geometry-aware dynamic programming over Doppler aliases.
 % Enumerate RADIAL Doppler candidates first, then divide each row by its
 % signed projection c_i=direction*sqrt(R_i^2-d^2)/R_i. Speed bounds, priors and
 % continuity apply to ALONG-TRAJECTORY speed, not radial speed.
 % UnwrappedVelocity_mps retains its legacy RADIAL meaning for coupling code.
 % TargetSpeed_mps is the new geometry-corrected speed magnitude.
+    unwrapInfo = struct('method', 'legacy', 'valid', false);
+    if isfield(cfg, 'unwrapMethod') && strcmp(cfg.unwrapMethod, 'closestApproach')
+        % referenceSpeed is the old distance-fit scalar, NOT a new observation.
+        % The joint solver intentionally does not add it as another prior.
+        [trackTable, unwrapInfo] = pradar.jointUnwrapTrack(trackTable, vMax, cfg);
+        return;
+    end
     validateattributes(vMax, {'numeric'}, {'scalar', 'positive', 'finite'});
     n = height(trackTable);
     trackTable.AmbiguityNumber = nan(n, 1);
@@ -81,4 +88,5 @@ function trackTable = unwrapTrackVelocity(trackTable, vMax, referenceSpeed, cfg)
     trackTable.MeasuredSpeedResidual_mps(validRows) = targetSpeed-cfg.measuredSpeed;
     trackTable.DistanceFitSpeedResidual_mps(validRows) = targetSpeed-referenceSpeed;
     trackTable.GlobalUnwrapPathCost(validRows) = bestCost;
+    unwrapInfo.valid = true;
 end

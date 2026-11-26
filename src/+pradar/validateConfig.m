@@ -30,8 +30,44 @@ function cfg = validateConfig(cfg)
         {'scalar', 'real', 'finite', 'nonnegative'}, mfilename, 'perpendicularDistance');
     validateattributes(cfg.radialDirection, {'numeric'}, ...
         {'scalar', 'real', 'finite'}, mfilename, 'radialDirection');
-    if ~ismember(cfg.radialDirection, [-1 1])
-        error('pradar:InvalidRadialDirection', 'radialDirection must be +1 or -1.');
+    if ~any(strcmp(cfg.unwrapMethod, {'closestApproach','legacy'}))
+        error('pradar:InvalidUnwrapMethod','Unknown unwrapMethod.');
+    end
+    if ~any(strcmp(cfg.motionModel, {'constantVelocity','constantAcceleration'}))
+        error('pradar:InvalidMotionModel','Unknown motionModel.');
+    end
+    allowedDirections = [-1 1];
+    if strcmp(cfg.unwrapMethod,'closestApproach'), allowedDirections = [-1 0 1]; end
+    if ~ismember(cfg.radialDirection, allowedDirections)
+        error('pradar:InvalidRadialDirection','Use +1/-1, or 0 for joint closest-approach crossing.');
+    end
+    if cfg.radialDirection==0 && cfg.perpendicularDistance<=0
+        error('pradar:UndefinedCollinearCrossing','Crossing mode requires perpendicularDistance > 0.');
+    end
+    positiveFields = {'closestSpeedStd','closestMaxExtrapolationMs', ...
+        'maxAbsAcceleration','motionAccelerationStd','jointRangeStd', ...
+        'jointRadialStd','jointHuberDelta','jointMaxNormalizedResidual'};
+    for k=1:numel(positiveFields)
+        validateattributes(cfg.(positiveFields{k}),{'numeric'}, ...
+            {'scalar','real','finite','positive'},mfilename,positiveFields{k});
+    end
+    for name = {'jointMaxIterations','jointMaxStarts','jointMaxTrackHypotheses'}
+        validateattributes(cfg.(name{1}),{'numeric'}, ...
+            {'scalar','finite','integer','positive'},mfilename,name{1});
+    end
+    for name = {'jointTransitionWeight','jointAmbiguityGapThreshold'}
+        validateattributes(cfg.(name{1}),{'numeric'}, ...
+            {'scalar','real','finite','nonnegative'},mfilename,name{1});
+    end
+    validateattributes(cfg.useClosestSpeedPrior,{'logical','numeric'},{'scalar','binary'});
+    if ~isscalar(cfg.closestApproachTimeMs) || ~isreal(cfg.closestApproachTimeMs) ...
+            || ~(isfinite(cfg.closestApproachTimeMs) || isnan(cfg.closestApproachTimeMs))
+        error('pradar:InvalidClosestTime','closestApproachTimeMs must be finite or NaN (automatic).');
+    end
+    validateattributes(cfg.ambiguityNumberMin,{'numeric'},{'scalar','finite','integer'});
+    validateattributes(cfg.ambiguityNumberMax,{'numeric'},{'scalar','finite','integer'});
+    if cfg.ambiguityNumberMin>cfg.ambiguityNumberMax
+        error('pradar:InvalidAmbiguityBounds','Ambiguity bounds are reversed.');
     end
     validateattributes(cfg.minRadialProjection, {'numeric'}, ...
         {'scalar', 'real', 'finite', 'positive', '<=', 1}, ...
@@ -76,9 +112,13 @@ function cfg = validateConfig(cfg)
             'unwrapSpeedMax must be greater than unwrapSpeedMin.');
     end
 
-    if ~isfinite(cfg.measuredSpeed)
-        error('pradar:MissingMeasuredSpeed', ...
-            'cfg.measuredSpeed must be supplied for ambiguity resolution.');
+    needsReference = strcmp(cfg.unwrapMethod,'legacy') || cfg.useClosestSpeedPrior;
+    if needsReference && (~isscalar(cfg.measuredSpeed) || ~isreal(cfg.measuredSpeed) ...
+            || ~isfinite(cfg.measuredSpeed) || cfg.measuredSpeed<=0)
+        error('pradar:MissingMeasuredSpeed','Supply a positive closest-point speed or disable its prior.');
+    end
+    if max(cfg.fitSpeedMin,cfg.unwrapSpeedMin)>=min(cfg.fitSpeedMax,cfg.unwrapSpeedMax)
+        error('pradar:DisjointSpeedBounds','Fit and unwrap physical bounds do not overlap.');
     end
 
     validProjectionModes = ...

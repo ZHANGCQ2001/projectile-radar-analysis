@@ -2,21 +2,27 @@
 
 [返回文档索引](README.md) · [使用说明](uppermachine_processing.md)
 
+## 新默认解模糊参数
+
+本分支默认 `unwrapMethod="closestApproach"`。`measuredSpeed` 仅为最近点合速率，允许关闭其先验；`radialDirection=0` 支持跨最近点。GUI物理速率范围独立设置为1～2000m/s，不随参考值变化。新增误差尺度、最近点时刻、运动模型和搜索参数见[新方法参数表](closest_approach_unwrapping.md#3-界面2设置)。
+
+下方第4～6节中“固定一侧、每点参考代价、measuredAlias权重、unwrapMeasured/unwrapFit权重”仅在legacy模式生效；新模式不读取这些全程参考权重。实际值以导出的result.cfg为准。
+
 ## 1. 默认值的来源
 
 参数优先级不是一个全局配置文件决定的。界面1使用 App 的 `cfg_*` 属性；界面2首次打开先经 `radarui.buildProcessingConfig()`，再由其控件收集参数；脚本使用 `pradar.defaultConfig()` 加案例覆盖。
 
 | 参数 | 公共默认 | 界面2首次从界面1打开 |
 |---|---:|---:|
-| `winSize / winStep` | 16 / 16 | 通常 16 / 16（不超过每帧 Chirp 数） |
-| `dopplerFftSize` | 128 | 通常 128 |
+| `winSize / winStep` | 64 / 64 | 通常 64 / 64（不超过每帧 Chirp 数） |
+| `dopplerFftSize` | 256 | 通常 256 |
 | `slowTimeMeanRemoval` | true | false，由独立勾选框控制 |
 | `useVelocityHardGate` | false | true |
 | `useFullAliasedVelocityAxis` | false（但 `highSpeedMin=0`） | true |
-| `candidateRangeMin / Max` | 0.25 / 6 m | 继承公共默认 |
-| `displayRangeMin / Max` | 0 / 10 m | 0 / 6 m |
-| `measuredSpeed` | NaN，运行前必须填写 | 400 m/s 初值，不是实测结果 |
-| `fitSpeedMin / Max` | 200 / 1700 m/s | 参考值 400 时为 180 / 620 m/s |
+| `candidateRangeMin / Max` | 2 / 10 m | 继承公共默认 |
+| `displayRangeMin / Max` | 0 / 10 m | 0 / 10 m |
+| `measuredSpeed` | NaN；启用最近点先验时必须填写 | 400 m/s 初值，不是实测结果 |
+| `fitSpeedMin / Max` | 200 / 1700 m/s | 1 / 2000 m/s，独立于参考值 |
 | `perpendicularDistance` | 0 m | 0 m |
 | `radialDirection` | +1 | 远离（距离增加） |
 | `minRadialProjection` | 0.10 | 0.10 |

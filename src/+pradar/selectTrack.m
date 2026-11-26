@@ -1,6 +1,10 @@
 function [trackTable, fitInfo] = selectTrack(candidateTable, cfg, derived)
 %SELECTTRACK Search, associate and iteratively fit a distance-time track.
 
+    if isfield(cfg, 'unwrapMethod') && strcmp(cfg.unwrapMethod, 'closestApproach')
+        [trackTable, fitInfo] = pradar.selectMotionTrack(candidateTable, cfg, derived);
+        return;
+    end
     trackTable = table();
     fitInfo = struct( ...
         'valid', false, ...

@@ -1,9 +1,10 @@
 # 文档索引
 
-文档对应 `feature/uppermachine-data-processing-v1`。软件行为核对基线：`d358b41933147d75840ec4c716150a01c8868e04`（2026-11-23）。本轮仅更新文档，不改变算法、GUI、采集逻辑或固件。
+本分支为 `feature/closest-approach-joint-unwrapping`，基于 `88d02d5`。新默认解模糊及参数含义以[最近点联合方法](closest_approach_unwrapping.md)为准；旧方法明确标为legacy。
 
 | 任务 | 文档 |
 |---|---|
+| 最近点速度锚定、变速、跨最近点、诊断 | [联合解模糊](closest_approach_unwrapping.md) |
 | 第一次启动、整体了解 | [项目 README](../README.md) |
 | 界面1选帧、界面2精细处理 | [双界面使用说明](uppermachine_processing.md) |
 | 理解两套 RD 路径与 dB 指标 | [算法流程](algorithm.md) |

@@ -56,7 +56,7 @@ function testNoisyFitUsesSlantResiduals(testCase)
 end
 
 function [cfg, derived, candidates] = fixture(direction,d)
-    cfg = pradar.defaultConfig(); cfg.measuredSpeed = 400;
+    cfg = pradar.defaultConfig(); cfg.unwrapMethod = "legacy"; cfg.measuredSpeed = 400;
     cfg.perpendicularDistance = d; cfg.radialDirection = direction;
     cfg.fitSpeedMin = 300; cfg.fitSpeedMax = 500;
     cfg.unwrapSpeedMin = 300; cfg.unwrapSpeedMax = 500;

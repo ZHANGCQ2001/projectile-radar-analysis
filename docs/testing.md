@@ -2,6 +2,12 @@
 
 [返回文档索引](README.md) · [贡献指南](../CONTRIBUTING.md)
 
+## 新分支回归
+
+`tests/test_closestApproachJoint.m` 验证最近点先验只计一次、恒速/变速、参考有偏或关闭、接近/远离/跨最近点、缺测及非等间隔、噪声/异常点、低投影、两优DP与穷举、端到端候选关联。旧几何测试显式指定legacy，以免丢失旧路径验证。
+
+SNR标记脚本按DisplayName分别检查主曲线与既有OS-CFAR门限曲线，不再错误地要求所有line对象只有一个；“当前帧”constantline仍必须恰好一个。双界面测试增加最近点参数保留检查。实际通过数量及失败信息以当次JUnit/日志为准。
+
 ## 1. 测试前准备
 
 从功能分支的完整工程根目录运行，保留 `data/123207_frames_126_135.bin` 和JSON模板。GUI回归会创建App并初始化本地配置/目录，但**不执行配置FPGA、开始采集或停止采集命令**。界面1相关测试需要 Signal Processing Toolbox。

@@ -41,7 +41,7 @@ function testZeroOffsetMatchesRadialSpeed(testCase)
 end
 
 function testEmptyTrack(testCase)
-    cfg = pradar.defaultConfig();
+    cfg = pradar.defaultConfig(); cfg.unwrapMethod = "legacy";
     result = pradar.unwrapTrackVelocity(table(),80,400,cfg);
     verifyEqual(testCase, height(result), 0);
     verifyTrue(testCase, ismember('TargetSpeed_mps',result.Properties.VariableNames));
@@ -66,7 +66,7 @@ function testUnsortedInputRestoresOriginalOrder(testCase)
 end
 
 function [cfg, input, trueRadial] = fixture(direction)
-    cfg = pradar.defaultConfig();
+    cfg = pradar.defaultConfig(); cfg.unwrapMethod = "legacy";
     cfg.perpendicularDistance = 3; cfg.radialDirection = direction;
     cfg.measuredSpeed = 400; cfg.unwrapSpeedMin = 300; cfg.unwrapSpeedMax = 500;
     cfg.measuredSpeedStd = 5; cfg.distanceFitSpeedStd = 5; cfg.unwrapContinuityStd = 5;

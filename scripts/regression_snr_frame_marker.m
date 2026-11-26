@@ -120,7 +120,11 @@ function marker = assertMarker(app, expectedFrame)
 end
 
 function y = assertCurve(app, expectedFrames)
-    curve = findall(app.UIAxes_SNR, 'Type', 'line');
+    % The source branch also draws an OS-CFAR threshold; it is not the SNR curve.
+    curve = findall(app.UIAxes_SNR, 'Type', 'line', 'DisplayName', '每帧最大 SNR');
+    threshold = findall(app.UIAxes_SNR, 'Type', 'line', 'DisplayName', 'OS-CFAR 门限');
+    assert(isscalar(threshold), 'Expected exactly one OS-CFAR threshold curve.');
+    assert(numel(threshold.YData) == expectedFrames);
     assert(isscalar(curve), 'Expected exactly one SNR curve.');
     assert(numel(curve.YData) == expectedFrames);
     y = curve.YData;

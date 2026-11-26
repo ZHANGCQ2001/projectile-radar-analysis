@@ -3,7 +3,7 @@ function tests = test_trackScoring
 end
 
 function testStrongProjectileBeatsWeakDenseClutter(testCase)
-    cfg = pradar.defaultConfig();
+    cfg = pradar.defaultConfig(); cfg.unwrapMethod = "legacy";
     cfg.measuredSpeed = 400;
     cfg.trackTolerance = 0.25;
     cfg.useVelocityHardGate = false;

@@ -133,11 +133,16 @@ function result = runAnalysis(cfg, dataFile)
     [trackTable, fitInfo] = pradar.selectTrack( ...
         candidateTable, cfg, derived);
 
+    unwrapInfo = struct('method',char(cfg.unwrapMethod),'valid',false);
     if fitInfo.valid
-        trackTable = pradar.unwrapTrackVelocity( ...
-            trackTable, derived.vMax, fitInfo.speed, cfg);
+        if strcmp(cfg.unwrapMethod,'closestApproach')
+            unwrapInfo = fitInfo.unwrapInfo;
+        else
+            [trackTable,unwrapInfo] = pradar.unwrapTrackVelocity( ...
+                trackTable,derived.vMax,fitInfo.speed,cfg);
+        end
         velocityMetrics = pradar.computeVelocityMetrics( ...
-            trackTable, cfg.measuredSpeed);
+            trackTable,cfg.measuredSpeed,unwrapInfo);
 
         couplingOffset = ...
             derived.centerFreq / cfg.slope ...
@@ -181,6 +186,7 @@ function result = runAnalysis(cfg, dataFile)
         candidateTable;
     result.trackTable = trackTable;
     result.fitInfo = fitInfo;
+    result.unwrapInfo = unwrapInfo;
     result.velocityMetrics = velocityMetrics;
 
     result.figures = pradar.plotResults(result);
@@ -443,6 +449,20 @@ function printSummary(result)
     fprintf('Candidates: %d\n', height(result.candidateTable));
     if result.fitInfo.valid
         fprintf('Track points: %d\n', height(result.trackTable));
+        if isfield(result.fitInfo,'unwrapInfo')
+            info=result.fitInfo.unwrapInfo;
+            fprintf('Closest-approach model speed: %.3f m/s at %.4f ms\n', ...
+                info.closestSpeed,info.closestTimeMs);
+            fprintf('Acceleration: %.3f m/s^2; status: %s\n',info.acceleration,info.status);
+            fprintf('Range/radial residual RMS: %.4f m / %.3f m/s\n', ...
+                info.rangeRmse,info.radialRmse);
+            fprintf('Closest-speed prior residual: %.3f m/s (not independent accuracy)\n',info.anchorResidual);
+            fprintf('Distinct alias paths: %d; cost gap: %.3f; uncertain: %d\n', ...
+                info.numDistinctPaths,info.ambiguityCostGap,info.ambiguityUncertain);
+            fprintf('Full-track MAE/RMSE against a single closest-speed reference: not applicable.\n');
+            fprintf('========================================\n');
+            return;
+        end
         fprintf('Distance-fit speed: %.2f m/s\n', result.fitInfo.speed);
         fprintf('Distance-fit RMSE: %.3f m\n', result.fitInfo.rmse);
         fprintf('Mean unwrapped speed: %.2f m/s\n', ...

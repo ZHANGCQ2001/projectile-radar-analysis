@@ -131,15 +131,16 @@ function result = runAnalysisCore(cfg, dataFile, progressFcn, cancelFcn)
     [trackTable, fitInfo] = pradar.selectTrack( ...
         candidateTable, cfg, derived);
 
+    unwrapInfo = struct('method',char(cfg.unwrapMethod),'valid',false);
     if fitInfo.valid
-        trackTable = pradar.unwrapTrackVelocity( ...
-            trackTable, ...
-            derived.vMax, ...
-            fitInfo.speed, ...
-            cfg);
-
+        if strcmp(cfg.unwrapMethod,'closestApproach')
+            unwrapInfo = fitInfo.unwrapInfo;
+        else
+            [trackTable,unwrapInfo] = pradar.unwrapTrackVelocity( ...
+                trackTable,derived.vMax,fitInfo.speed,cfg);
+        end
         velocityMetrics = pradar.computeVelocityMetrics( ...
-            trackTable, cfg.measuredSpeed);
+            trackTable,cfg.measuredSpeed,unwrapInfo);
 
         couplingOffset = ...
             derived.centerFreq / cfg.slope ...
@@ -189,6 +190,7 @@ function result = runAnalysisCore(cfg, dataFile, progressFcn, cancelFcn)
     result.candidateTable = candidateTable;
     result.trackTable = trackTable;
     result.fitInfo = fitInfo;
+    result.unwrapInfo = unwrapInfo;
     result.velocityMetrics = velocityMetrics;
 
     if keepIntermediateData
