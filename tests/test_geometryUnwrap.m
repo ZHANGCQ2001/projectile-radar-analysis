@@ -65,6 +65,40 @@ function testUnsortedInputRestoresOriginalOrder(testCase)
     verifyEqual(testCase, result.UnwrappedRadialVelocity_mps, trueRadial(order), 'AbsTol', 1e-9);
 end
 
+function testEndFrameAnchorBackwardSolveAcceleratingTarget(testCase)
+    % The 200 m/s reference belongs to the LAST frame only. Earlier frames
+    % are faster and must be recovered backwards through continuity.
+    cfg = pradar.defaultConfig();
+    cfg.perpendicularDistance = 0;
+    cfg.radialDirection = 1;
+    cfg.measuredSpeed = 200;
+    cfg.measuredSpeedStd = 6;
+    cfg.unwrapContinuityStd = 12;
+    cfg.unwrapSpeedMin = 100;
+    cfg.unwrapSpeedMax = 600;
+    cfg.unwrapEndAnchorWeight = 4;
+    cfg.ambiguityNumberMin = -12;
+    cfg.ambiguityNumberMax = 12;
+
+    vMax = 80;
+    n = 16;
+    trueSpeed = linspace(400,200,n).';
+    dtSec = 0.015;
+    timeMs = (0:n-1).' * dtSec * 1e3;
+    rangeM = 15 + cumsum([0; trueSpeed(1:end-1)]) * dtSec;
+    alias = pradar.wrapVelocity(trueSpeed, vMax);
+    input = table(timeMs, rangeM, alias, ...
+        'VariableNames', {'Time_ms','Range_m','AliasedVelocity_mps'});
+
+    % 320 mimics a constant-speed fit over the whole accelerating run;
+    % it must not drag the end-frame anchor away from 200 m/s.
+    result = pradar.unwrapTrackVelocity(input, vMax, 320, cfg);
+
+    verifyEqual(testCase, result.TargetSpeed_mps(end), 200, 'AbsTol', 6);
+    verifyEqual(testCase, result.TargetSpeed_mps, trueSpeed, 'AbsTol', 6);
+    verifyLessThan(testCase, max(abs(diff(result.TargetSpeed_mps))), 25);
+end
+
 function [cfg, input, trueRadial] = fixture(direction)
     cfg = pradar.defaultConfig();
     cfg.perpendicularDistance = 3; cfg.radialDirection = direction;

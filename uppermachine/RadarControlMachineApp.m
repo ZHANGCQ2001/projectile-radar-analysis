@@ -436,7 +436,7 @@ classdef RadarControlMachineApp < matlab.apps.AppBase
             
             % 5. FFT处理
             rangeProfile = fft(adcOutFrame .* hann(numRangeSamples), app.cfg_RangeFftSize, 1);
-            rangeProfile = filter([1,-2,1],1,rangeProfile,[],2);
+            rangeProfile = filter([1,-2,1],1,rangeProfile,[],2); %Chirp间对消
             % 0601 
             rangeDoppler = fft(rangeProfile .* hann(app.cfg_WinSize)', [], 2);
             %numDopplerbin = size(rangeDoppler,2);

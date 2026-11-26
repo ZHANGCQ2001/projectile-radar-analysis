@@ -4,6 +4,13 @@
 
 以下记录对应 `feature/uppermachine-data-processing-v1` 的源码变化，不代表已发布新安装包或已完成实机验收。
 
+### 2026-11-26：结束帧锚定的逆向速度解模糊
+
+- `pradar.unwrapTrackVelocity` 改为按时间倒序求解：用户参考速率（如 200 m/s）只锚定目标运动结束帧，前一帧由 Doppler 候选 + 连续性约束确定。
+- 新增 `unwrapEndAnchorWeight`、`unwrapEndFitWeight`、`unwrapAliasChangePenalty` 配置；整段恒速拟合速度默认不再作为逐帧/末帧先验。
+- 界面2配置桥接把 `unwrapSpeedMax` 从参考速率的 1.55 倍放宽到 3.0 倍，避免加速目标前段速度被判为不可行。
+- 新增加速目标逆向解模糊回归测试，并同步算法/参数/README文档。
+
 ### 2026-11-23：文档与现有功能对齐
 
 - 重写README的源码启动与双界面工作流，明确功能分支和依赖。

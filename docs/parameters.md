@@ -82,7 +82,7 @@ Vmax = lambda/(4*chirpPeriod)
 | `unwrapSpeedMin/Max` | 逐点几何折算候选的沿轨迹速率范围 |
 | `ambiguityNumberMin/Max` | 径向 Doppler 模糊数整数搜索范围，公共默认 -12～12；GUI未单独暴露 |
 
-界面2收集参数时将 `unwrapSpeedMin/Max` 与控件中的 `fitSpeedMin/Max` 同步。脚本配置仍可单独设置两组范围。接近时不要输入负的沿轨迹速率；使用 `radialDirection=-1` 表示方向。
+界面2配置桥接中，`unwrapSpeedMin/Max` 与 `fitSpeedMin/Max` 分开派生：拟合范围仍按参考速率的 0.45～1.55 倍，解模糊范围放宽到 0.45～3.0 倍，以容纳加速目标前段速度。脚本配置仍可单独设置两组范围。接近时不要输入负的沿轨迹速率；使用 `radialDirection=-1` 表示方向。
 
 ## 5. 候选、显示与关联
 
@@ -109,7 +109,9 @@ Vmax = lambda/(4*chirpPeriod)
 
 ## 6. 解模糊权重与输出控制
 
-`unwrapMeasuredWeight / unwrapFitWeight / unwrapContinuityWeight` 的公共默认值为 1.00 / 0.45 / 0.80。对应误差尺度 `measuredSpeedStd / distanceFitSpeedStd / unwrapContinuityStd` 默认为35 / 50 / 25 m/s；界面2配置桥接还会按初始参考速率设置尺度。这些是代价函数尺度，不是软件实测出的标准差或CRLB。
+`unwrapMeasuredWeight / unwrapFitWeight / unwrapContinuityWeight` 的公共默认值为 1.00 / 0.45 / 0.80；其中 `unwrapFitWeight` 是旧字段，当前 DP 不再使用。对应误差尺度 `measuredSpeedStd / distanceFitSpeedStd / unwrapContinuityStd` 默认为35 / 50 / 25 m/s；界面2配置桥接还会按初始参考速率设置尺度。这些是代价函数尺度，不是软件实测出的标准差或CRLB。
+
+参考速率（`measuredSpeed`，界面2填 200 时即为 200）现在只锚定目标运动结束帧，解算从结束帧向起始帧逆向进行。新增 `unwrapEndAnchorWeight`（默认 2.0）控制末帧锚点强度，`unwrapEndFitWeight`（默认 0）可选地把 `fitInfo.speed` 也作为末帧辅助锚点，`unwrapAliasChangePenalty`（默认 0.5）惩罚相邻帧模糊数跳变。界面桥接把 `unwrapSpeedMax` 从参考速率的 1.55 倍放宽到 3.0 倍，以容纳加速目标前段速度。
 
 `applyRangeVelocityCouplingCorrection=false` 为默认；启用时修正用径向速度，符号由 `rangeVelocityCouplingSign` 控制。`plotVisible`、`generateRdGif`、`saveResults` 属于脚本输出设置；GUI调用Core并单独导出，不因这些字段自动写GIF。
 

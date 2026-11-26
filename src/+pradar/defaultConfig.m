@@ -76,8 +76,13 @@ function cfg = defaultConfig()
     cfg.distanceFitSpeedStd = 50;
     cfg.unwrapContinuityStd = 25;
     cfg.unwrapMeasuredWeight = 1.00;
-    cfg.unwrapFitWeight = 0.45;
+    cfg.unwrapFitWeight = 0.45;  % legacy field, no longer used by the DP
     cfg.unwrapContinuityWeight = 0.80;
+    % End-frame anchor settings. The user reference speed anchors only the
+    % last observed frame; earlier frames follow Doppler + continuity.
+    cfg.unwrapEndAnchorWeight = 2.0;
+    cfg.unwrapEndFitWeight = 0;  % optional fit-speed anchor at the end frame
+    cfg.unwrapAliasChangePenalty = 0.5;
     cfg.ambiguityNumberMin = -12;
     cfg.ambiguityNumberMax = 12;
     cfg.unwrapSpeedMin = 0;

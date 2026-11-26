@@ -43,11 +43,11 @@ v_r,i(k) = AliasedVelocity_i + 2*k*Vmax
 V_i(k) = v_r,i(k)/c_i
 ```
 
-先枚举径向 Doppler 模糊数，再在沿轨迹速率域对候选施加范围、参考速率、距离模型拟合速率和相邻点连续性约束。动态规划选择整段最小代价路径。不是先把模糊速度除以角度，再加一个固定的沿轨迹模糊周期。
+先枚举径向 Doppler 模糊数，再在沿轨迹速率域对候选施加范围约束；用户参考速率只锚定**目标运动结束帧**，更早的帧从结束帧逆向逐点求解，由相邻点连续性和模糊数跳变惩罚连接。不是先把模糊速度除以角度，再加一个固定的沿轨迹模糊周期，也不是把参考速率当成每一帧的先验。
 
 `R<=d`、非有限斜距、或 `|c_i|<minRadialProjection` 的点不参与折算。默认最小投影为 0.10，可在界面2修改。不能将无效斜距夹到 d 附近后强行除以接近零的数。最近点附近径向速度不能稳定确定沿轨迹速率，这不是用更多小数位可以修复的问题。
 
-参考速率仍是解模糊先验，不是独立测速真值；摘要中的 RMSE/MAE 是相对所输入参考值的差异。错误参考值、方向或横向距离可能使模糊数选错。
+参考速率只是末帧解模糊先验，不是独立测速真值；摘要中的 RMSE/MAE 是相对所输入参考值的差异，对加速目标整段会明显偏大。错误参考值、方向或横向距离仍可能使模糊数选错。
 
 ## 输出字段
 
@@ -81,17 +81,19 @@ t_i = (physicalFrame_i - targetFrameStart)*framePeriod
 
 ## 动态规划实际使用的约束
 
-对每个有效点和模糊数 k，在沿轨迹速率候选 `V_i(k)` 上计算：
+有效点按时间**降序**排列（目标运动结束帧在前），对每个点和模糊数 k 在沿轨迹速率候选 `V_i(k)` 上计算：
 
 ```text
-localCost(i,k) = unwrapMeasuredWeight*((V_i(k)-measuredSpeed)/measuredSpeedStd)^2
-               + unwrapFitWeight*((V_i(k)-referenceSpeed)/distanceFitSpeedStd)^2
+localCost(1,k) = unwrapEndAnchorWeight * ( unwrapMeasuredWeight*((V_1(k)-measuredSpeed)/measuredSpeedStd)^2
+                                         + unwrapEndFitWeight*((V_1(k)-referenceSpeed)/distanceFitSpeedStd)^2 )
+localCost(i>1,k) = 0
 transition(i,k,j) = unwrapContinuityWeight*((V_i(k)-V_(i-1)(j))/unwrapContinuityStd)^2
+                  + unwrapAliasChangePenalty*|k_i - k_j|
 ```
 
-此处函数参数 `referenceSpeed` 是 `fitInfo.speed`，配置字段 `measuredSpeed` 是用户输入的参考速率。超出 `unwrapSpeedMin/Max` 的状态不可行。按时间顺序求最小总代价并回溯，同时保留输入表的行顺序。
+配置字段 `measuredSpeed` 是用户输入的参考速率（例如 200 m/s），它**只锚定目标运动结束帧**。`referenceSpeed` 是函数参数 `fitInfo.speed`，默认不再进入锚点（`unwrapEndFitWeight=0`），避免整段匀速拟合值把加速目标的末帧拉偏；如需启用可显式设置 `unwrapEndFitWeight`。超出 `unwrapSpeedMin/Max` 的状态不可行。从结束帧出发逆向 DP，取最早帧的最小累计代价后回溯，输出仍写回原表行顺序。
 
-连续性项是相邻有效点的速率差，未除以时间间隔；不能称为加速度滤波器。无可行路径时输出保持NaN并给出警告，不自动扩大模糊数范围或强制取参考值。
+连续性项是相邻有效点的速率差，未除以时间间隔；不能称为加速度滤波器。`unwrapAliasChangePenalty` 对模糊数跳变增加线性代价，默认 0.5，用于抑制 `k` 来回翻转。无可行路径时输出保持NaN并给出警告，不自动扩大模糊数范围或强制取参考值。由于锚点只在末帧，界面桥接把 `unwrapSpeedMax` 放宽到参考速率的 3 倍，以便容纳加速目标前段更高的速度。
 
 ## 输出解释补充
 

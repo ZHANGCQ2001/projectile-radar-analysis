@@ -79,11 +79,14 @@ function cfg = buildProcessingConfig(appConfig)
     end
     cfg.measuredSpeed = referenceSpeed;
 
-    cfg.fitSpeedMin = max(1, 0.45 * referenceSpeed);
-    cfg.fitSpeedMax = max(cfg.fitSpeedMin + 100, 1.55 * referenceSpeed);
-    cfg.unwrapSpeedMin = max(0, 0.45 * referenceSpeed);
+    cfg.fitSpeedMin = max(1, 0.1 * referenceSpeed);
+    cfg.fitSpeedMax = max(cfg.fitSpeedMin + 100, 2 * referenceSpeed);
+    % The reference speed (e.g. 200 m/s) now anchors only the END frame.
+    % Earlier frames of an accelerating projectile can be much faster, so
+    % the unwrap search range must be wider than the fit speed range.
+    cfg.unwrapSpeedMin = max(0, 0.1 * referenceSpeed);
     cfg.unwrapSpeedMax = max( ...
-        cfg.unwrapSpeedMin + 100, 1.55 * referenceSpeed);
+        cfg.unwrapSpeedMin + 100, 3.0 * referenceSpeed);
 
     cfg.measuredSpeedStd = max(35, 0.08 * referenceSpeed);
     cfg.distanceFitSpeedStd = max(50, 0.10 * referenceSpeed);
